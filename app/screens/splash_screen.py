@@ -1,11 +1,25 @@
-"""3.1 Splash Screen — frameless, auto-transitions to main window."""
+"""
+splash_screen.py — Splash screen shown while the application initialises.
+
+Provides:
+    SplashScreen(QWidget) — frameless, translucent window with gradient
+    background, logo, tagline, indeterminate progress bar, and version label.
+    Auto-dismissed by MainWindow after 2.2 s.
+"""
 from __future__ import annotations
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QProgressBar, QApplication
-from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QColor, QPainter, QPainterPath, QLinearGradient
 
 
 class SplashScreen(QWidget):
+    """
+    Frameless splash screen displayed during application startup.
+
+    Renders a dark rounded card with an accent glow, application logo,
+    tagline, indeterminate progress bar, and version string.
+    """
+
     def __init__(self):
         super().__init__()
         self.setWindowFlags(
@@ -15,7 +29,7 @@ class SplashScreen(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setFixedSize(520, 340)
 
-        # Center on screen
+        # Centre on primary screen
         screen = QApplication.primaryScreen()
         if screen:
             sg = screen.geometry()
@@ -26,7 +40,7 @@ class SplashScreen(QWidget):
         root.setSpacing(0)
         root.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Logo emoji / icon
+        # Logo
         logo = QLabel("🔍")
         logo.setFont(QFont("Segoe UI", 52))
         logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -50,9 +64,9 @@ class SplashScreen(QWidget):
 
         root.addSpacing(28)
 
-        # Progress bar
+        # Indeterminate progress bar
         self._bar = QProgressBar()
-        self._bar.setRange(0, 0)   # indeterminate
+        self._bar.setRange(0, 0)
         self._bar.setFixedHeight(4)
         self._bar.setStyleSheet(
             "QProgressBar { background:#3A3C42; border-radius:2px; }"
@@ -70,20 +84,25 @@ class SplashScreen(QWidget):
         ver.setStyleSheet("color: #5B5F6A;")
         root.addWidget(ver)
 
-    def paintEvent(self, _):
+    def paintEvent(self, _) -> None:
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         path = QPainterPath()
         path.addRoundedRect(0, 0, self.width(), self.height(), 16, 16)
+
+        # Background gradient
         grad = QLinearGradient(0, 0, 0, self.height())
         grad.setColorAt(0, QColor("#26272B"))
         grad.setColorAt(1, QColor("#1E1F22"))
         p.fillPath(path, grad)
 
-        # Subtle accent glow top-center
-        glow = QLinearGradient(self.width()//2 - 100, 0, self.width()//2 + 100, 80)
-        glow.setColorAt(0, QColor(62, 155, 255, 0))
+        # Subtle accent glow at top-centre
+        glow = QLinearGradient(
+            self.width() // 2 - 100, 0,
+            self.width() // 2 + 100, 80,
+        )
+        glow.setColorAt(0,   QColor(62, 155, 255, 0))
         glow.setColorAt(0.5, QColor(62, 155, 255, 35))
-        glow.setColorAt(1, QColor(62, 155, 255, 0))
+        glow.setColorAt(1,   QColor(62, 155, 255, 0))
         p.fillPath(path, glow)
         p.end()

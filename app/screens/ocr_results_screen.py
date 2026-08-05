@@ -1,92 +1,33 @@
-"""3.6 OCR Result Screen — editable table with confidence bars, status chips, pagination."""
+"""
+ocr_results_screen.py — OCR Results screen.
+
+Provides:
+    OcrResultsPage(QWidget)
+        Editable table of OCR-extracted comment text with confidence bars,
+        status chips, a search bar, status filter, and pagination controls.
+"""
 from __future__ import annotations
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame,
                                 QLabel, QTableView, QPushButton, QComboBox,
                                 QLineEdit, QHeaderView, QAbstractItemView,
-                                QStyledItemDelegate, QStyleOptionViewItem,
-                                QApplication, QSizePolicy, QProgressBar)
-from PySide6.QtGui import (QFont, QStandardItemModel, QStandardItem,
-                            QColor, QPainter, QBrush)
-from PySide6.QtCore import Qt, QSortFilterProxyModel, QModelIndex, QRect
+                                QSizePolicy)
+from PySide6.QtGui import QFont, QStandardItemModel, QStandardItem
+from PySide6.QtCore import Qt, QSortFilterProxyModel
 
 from app import mock_data as md
-from app.components.chips import StatusChip
-from app.components.confidence_bar import ConfidenceBar
+from app.components.comment_table import ConfidenceDelegate, StatusDelegate
+from app.components.search_bar import SearchBar
 
-
-# ── Confidence cell delegate ──────────────────────────────────────────────────
-
-class ConfidenceDelegate(QStyledItemDelegate):
-    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
-        val = index.data(Qt.ItemDataRole.UserRole)
-        if not isinstance(val, float):
-            super().paint(painter, option, index)
-            return
-
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        if option.state & 0x0001:  # selected
-            painter.fillRect(option.rect, QColor("#3E9BFF22"))
-
-        # Background track
-        bar_rect = QRect(option.rect.x() + 8, option.rect.y() + 18,
-                         option.rect.width() - 16, 8)
-        painter.setBrush(QColor("#3A3C42"))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawRoundedRect(bar_rect, 4, 4)
-
-        # Filled portion
-        fill_w = int(bar_rect.width() * val)
-        if fill_w > 0:
-            fill_c = "#4ADE80" if val >= 0.9 else "#FBBF24" if val >= 0.7 else "#F87171"
-            painter.setBrush(QColor(fill_c))
-            painter.drawRoundedRect(
-                QRect(bar_rect.x(), bar_rect.y(), fill_w, bar_rect.height()), 4, 4
-            )
-
-        # Percentage text
-        painter.setPen(QColor("#F2F3F5"))
-        painter.setFont(QFont("Cascadia Code", 11))
-        painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter,
-                         f"{int(val*100)}%")
-
-
-# ── Status chip delegate ──────────────────────────────────────────────────────
-
-class StatusDelegate(QStyledItemDelegate):
-    _STATUS_COLORS = {
-        "Pending":  ("#A6A9B1", "#3A3C42"),
-        "Approved": ("#4ADE80", "#1a3d26"),
-        "Rejected": ("#F87171", "#3d1a1a"),
-        "Flagged":  ("#FBBF24", "#3d2e0a"),
-    }
-
-    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
-        status = index.data()
-        if not status:
-            super().paint(painter, option, index)
-            return
-        if option.state & 0x0001:
-            painter.fillRect(option.rect, QColor("#3E9BFF22"))
-        text_c, bg_c = self._STATUS_COLORS.get(status, ("#A6A9B1", "#3A3C42"))
-        pill_w, pill_h = 80, 22
-        x = option.rect.x() + (option.rect.width() - pill_w) // 2
-        y = option.rect.y() + (option.rect.height() - pill_h) // 2
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setBrush(QColor(bg_c))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawRoundedRect(x, y, pill_w, pill_h, 4, 4)
-        painter.setPen(QColor(text_c))
-        painter.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        painter.drawText(QRect(x, y, pill_w, pill_h),
-                         Qt.AlignmentFlag.AlignCenter, status.upper())
-
-
-# ── OCR Results Page ──────────────────────────────────────────────────────────
 
 class OcrResultsPage(QWidget):
+    """
+    OCR Results — editable table with confidence bars, status chips,
+    search, filter, and pagination.
+    """
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._page = 0
+        self._page      = 0
         self._page_size = 10
 
         root = QVBoxLayout(self)
@@ -97,10 +38,10 @@ class OcrResultsPage(QWidget):
         tb = QHBoxLayout()
         tb.setSpacing(12)
 
-        search = QLineEdit()
-        search.setPlaceholderText("  🔍  Search OCR text, drawing number…")
-        search.setFixedHeight(36)
-        search.setFixedWidth(320)
+        search = SearchBar(
+            placeholder="  🔍  Search OCR text, drawing number…",
+            fixed_width=320,
+        )
         tb.addWidget(search)
         tb.addStretch()
 
@@ -128,7 +69,7 @@ class OcrResultsPage(QWidget):
         self._proxy.setSourceModel(self._model)
         self._proxy.setFilterKeyColumn(-1)
         self._proxy.setFilterCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        search.textChanged.connect(self._proxy.setFilterFixedString)
+        search.search_changed.connect(self._proxy.setFilterFixedString)
 
         self._table = QTableView()
         self._table.setModel(self._proxy)
@@ -159,6 +100,7 @@ class OcrResultsPage(QWidget):
         rpp_lbl = QLabel("Rows per page:")
         rpp_lbl.setObjectName("SubCaption")
         pag.addWidget(rpp_lbl)
+
         rpp = QComboBox()
         rpp.addItems(["10", "25", "50"])
         rpp.setFixedHeight(32)
@@ -166,6 +108,7 @@ class OcrResultsPage(QWidget):
         pag.addWidget(rpp)
 
         pag.addStretch()
+
         self._pg_lbl = QLabel(f"1–10 of {len(md.COMMENTS)}")
         self._pg_lbl.setObjectName("SubCaption")
         pag.addWidget(self._pg_lbl)
@@ -182,13 +125,15 @@ class OcrResultsPage(QWidget):
 
         root.addLayout(pag)
 
+    # ── Model builder ─────────────────────────────────────────────
+
     def _build_model(self) -> QStandardItemModel:
         model = QStandardItemModel(0, 4)
         model.setHorizontalHeaderLabels(
             ["Comment ID", "OCR Text", "Confidence", "Status"]
         )
         for c in md.COMMENTS:
-            id_item = QStandardItem(c.id)
+            id_item   = QStandardItem(c.id)
             id_item.setFont(QFont("Cascadia Code", 12))
             text_item = QStandardItem(c.ocr_text)
             text_item.setEditable(True)
@@ -201,7 +146,8 @@ class OcrResultsPage(QWidget):
             status_item.setEditable(False)
 
             for item in [id_item, text_item, conf_item, status_item]:
-                item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter |
-                                      Qt.AlignmentFlag.AlignLeft)
+                item.setTextAlignment(
+                    Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
+                )
             model.appendRow([id_item, text_item, conf_item, status_item])
         return model

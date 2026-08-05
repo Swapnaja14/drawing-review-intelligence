@@ -1,22 +1,34 @@
-"""3.8 Human Verification Screen — splitter: PDF canvas left, review panel right."""
+"""
+review_screen.py — Human Verification screen.
+
+Provides:
+    HumanReviewPage(QWidget)
+        Splitter: PDF canvas on the left, review panel on the right.
+        Supports keyboard shortcuts: A = Approve, R = Reject, ←/→ = Prev/Next.
+"""
 from __future__ import annotations
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame,
                                 QLabel, QPushButton, QTextEdit, QComboBox,
                                 QProgressBar, QSplitter, QSizePolicy,
                                 QGraphicsView, QGraphicsScene)
-from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, Signal
-from PySide6.QtGui import QFont, QColor, QPainter, QKeyEvent
+from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtGui import QFont, QPainter, QKeyEvent
 
 from app import mock_data as md
 from app.components.chips import StatusChip, CategoryBadge
-from app.screens.pdf_viewer import _make_page_pixmap
+from app.components.pdf_canvas import make_page_pixmap
 
 
 class HumanReviewPage(QWidget):
+    """
+    Human Verification — PDF canvas + review panel with Approve / Reject /
+    Edit actions and keyboard navigation.
+    """
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._comments = [c for c in md.COMMENTS]
-        self._idx = 0
+        self._comments = list(md.COMMENTS)
+        self._idx      = 0
         self._statuses = {c.id: c.status for c in self._comments}
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
@@ -31,11 +43,15 @@ class HumanReviewPage(QWidget):
 
         # Left — PDF canvas
         self._scene = QGraphicsScene()
-        self._view = QGraphicsView(self._scene)
-        self._view.setRenderHints(QPainter.RenderHint.Antialiasing |
-                                   QPainter.RenderHint.SmoothPixmapTransform)
+        self._view  = QGraphicsView(self._scene)
+        self._view.setRenderHints(
+            QPainter.RenderHint.Antialiasing |
+            QPainter.RenderHint.SmoothPixmapTransform
+        )
         self._view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
-        self._view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self._view.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         self._load_canvas()
         splitter.addWidget(self._view)
 
@@ -76,7 +92,8 @@ class HumanReviewPage(QWidget):
         )
         lay.addWidget(self._prog_bar)
 
-        sep = QFrame(); sep.setFrameShape(QFrame.Shape.HLine)
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
         lay.addWidget(sep)
 
         # Comment edit card
@@ -170,7 +187,9 @@ class HumanReviewPage(QWidget):
         lay.addLayout(action_bar)
 
         # Keyboard hint
-        hint = QLabel("Keyboard: A = Approve  ·  R = Reject  ·  ← / → = Prev / Next")
+        hint = QLabel(
+            "Keyboard: A = Approve  ·  R = Reject  ·  ← / → = Prev / Next"
+        )
         hint.setObjectName("SubCaption")
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(hint)
@@ -178,70 +197,73 @@ class HumanReviewPage(QWidget):
         lay.addStretch()
         return panel
 
-    # ── Data helpers ──────────────────────────────────────────────
+    # ── Canvas / comment helpers ──────────────────────────────────
 
-    def _load_canvas(self):
+    def _load_canvas(self) -> None:
         self._scene.clear()
-        pm = _make_page_pixmap(640, 820)
-        self._scene.addPixmap(pm)
+        self._scene.addPixmap(make_page_pixmap(640, 820))
 
-    def _load_comment(self):
+    def _load_comment(self) -> None:
         if not self._comments:
             return
-        c = self._comments[self._idx]
+        c     = self._comments[self._idx]
         total = len(self._comments)
 
-        self._prog_lbl.setText(f"Comment {self._idx+1} of {total}")
+        self._prog_lbl.setText(f"Comment {self._idx + 1} of {total}")
         self._prog_bar.setValue(self._idx + 1)
-        self._comment_id_lbl.setText(f"{c.id}  ·  {c.drawing_no}  ·  pg {c.page}")
+        self._comment_id_lbl.setText(
+            f"{c.id}  ·  {c.drawing_no}  ·  pg {c.page}"
+        )
         self._ocr_edit.setPlainText(c.ocr_text)
         self._cat_combo.setCurrentText(c.category)
         self._cat_badge.set_category(c.category)
-        conf_pct = int(c.confidence * 100)
-        self._conf_lbl.setText(f"Confidence: {conf_pct}%")
-        st = self._statuses.get(c.id, c.status)
-        self._status_chip.set_status(st)
+        self._conf_lbl.setText(f"Confidence: {int(c.confidence * 100)}%")
+        self._status_chip.set_status(self._statuses.get(c.id, c.status))
         self._prev_btn.setEnabled(self._idx > 0)
         self._next_btn.setEnabled(self._idx < total - 1)
 
-    def _flash_card(self, color: str):
+    def _flash_card(self, color: str) -> None:
         orig = self._edit_card.styleSheet()
         self._edit_card.setStyleSheet(
             f"#Card {{ border:2px solid {color}; border-radius:8px; }}"
         )
         QTimer.singleShot(350, lambda: self._edit_card.setStyleSheet(orig))
 
-    def _set_status(self, status: str):
+    def _set_status(self, status: str) -> None:
         c = self._comments[self._idx]
         self._statuses[c.id] = status
         self._status_chip.set_status(status)
 
-    def _approve(self):
+    # ── Action slots ──────────────────────────────────────────────
+
+    def _approve(self) -> None:
         self._set_status("Approved")
         self._flash_card("#4ADE80")
         QTimer.singleShot(400, self._next)
 
-    def _reject(self):
+    def _reject(self) -> None:
         self._set_status("Rejected")
         self._flash_card("#F87171")
         QTimer.singleShot(400, self._next)
 
-    def _toggle_edit(self):
+    def _toggle_edit(self) -> None:
         ro = self._ocr_edit.isReadOnly()
         self._ocr_edit.setReadOnly(not ro)
         self._edit_btn.setText("💾  Save" if ro else "✎  Edit")
 
-    def _prev(self):
+    def _prev(self) -> None:
         if self._idx > 0:
             self._idx -= 1
             self._load_comment()
 
-    def _next(self):
+    def _next(self) -> None:
         if self._idx < len(self._comments) - 1:
             self._idx += 1
             self._load_comment()
 
-    def keyPressEvent(self, e: QKeyEvent):
+    # ── Keyboard navigation ───────────────────────────────────────
+
+    def keyPressEvent(self, e: QKeyEvent) -> None:
         key = e.key()
         if key == Qt.Key.Key_A:
             self._approve()

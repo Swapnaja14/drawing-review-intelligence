@@ -1,14 +1,24 @@
-"""3.10 Export Screen — format selector cards, scope options, progress, history table."""
+"""
+export_screen.py — Export screen.
+
+Provides:
+    ExportPage(QWidget)
+        Format selector cards (Excel / PDF / CSV), scope radio buttons,
+        simulated export progress bar, and an export history table.
+"""
 from __future__ import annotations
+from datetime import date as _date
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame,
                                 QLabel, QPushButton, QRadioButton, QButtonGroup,
                                 QProgressBar, QTableView, QHeaderView,
-                                QAbstractItemView, QSizePolicy)
+                                QAbstractItemView)
 from PySide6.QtGui import QFont, QStandardItemModel, QStandardItem, QColor
 from PySide6.QtCore import Qt, QTimer
 
 from app import mock_data as md
 
+
+# ── Format card ───────────────────────────────────────────────────────────────
 
 _FORMATS = [
     ("📊", "Excel", ".xlsx", "Full data with charts and formatting", "#4ADE80"),
@@ -18,15 +28,17 @@ _FORMATS = [
 
 
 class _FormatCard(QFrame):
-    def __init__(self, icon: str, name: str, ext: str, desc: str,
-                 color: str, parent=None):
+    """Selectable export-format card."""
+
+    def __init__(self, icon: str, name: str, ext: str,
+                 desc: str, color: str, parent=None):
         super().__init__(parent)
         self.setObjectName("Card")
         self.setMinimumHeight(140)
         self.setMinimumWidth(180)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self._selected = False
-        self._color = color
+        self._color    = color
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(20, 20, 20, 20)
@@ -56,33 +68,41 @@ class _FormatCard(QFrame):
 
         self._dot = QLabel("●")
         self._dot.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._dot.setStyleSheet(f"color: {color}; font-size:20px; visibility:hidden;")
+        self._dot.setStyleSheet(f"color: {color}; font-size:20px;")
         self._dot.hide()
         lay.addWidget(self._dot)
 
-    def set_selected(self, v: bool):
+    def set_selected(self, v: bool) -> None:
         self._selected = v
         if v:
             self.setStyleSheet(
-                f"#Card {{ border:2px solid {self._color}; border-radius:8px; "
-                f"background-color: {self._color}18; }}"
+                f"#Card {{ border:2px solid {self._color};"
+                f" border-radius:8px;"
+                f" background-color: {self._color}18; }}"
             )
             self._dot.show()
         else:
             self.setStyleSheet("")
             self._dot.hide()
 
-    def mousePressEvent(self, e):
+    def mousePressEvent(self, e) -> None:
         self.set_selected(True)
         super().mousePressEvent(e)
 
 
+# ── ExportPage ────────────────────────────────────────────────────────────────
+
 class ExportPage(QWidget):
+    """
+    Export — format cards, scope options, simulated progress bar,
+    and an export history table.
+    """
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._selected_format = "Excel"
+        self._selected_format  = "Excel"
         self._format_cards: list[_FormatCard] = []
-        self._progress = 0
+        self._progress         = 0
 
         root = QVBoxLayout(self)
         root.setContentsMargins(32, 32, 32, 32)
@@ -150,7 +170,9 @@ class ExportPage(QWidget):
         hist_hdr = QLabel("  Export History")
         hist_hdr.setFixedHeight(44)
         hist_hdr.setFont(QFont("Segoe UI Variable", 15, QFont.Weight.DemiBold))
-        hist_hdr.setStyleSheet("padding-left:16px; border-bottom:1px solid #3A3C42;")
+        hist_hdr.setStyleSheet(
+            "padding-left:16px; border-bottom:1px solid #3A3C42;"
+        )
         hist_lay.addWidget(hist_hdr)
 
         self._hist_table = self._build_history_table()
@@ -161,6 +183,8 @@ class ExportPage(QWidget):
         self._timer.setInterval(50)
         self._timer.timeout.connect(self._tick)
 
+    # ── Helpers ───────────────────────────────────────────────────
+
     def _make_select_handler(self, card: _FormatCard, name: str):
         def handler(e):
             for c in self._format_cards:
@@ -169,14 +193,14 @@ class ExportPage(QWidget):
             self._selected_format = name
         return handler
 
-    def _start_export(self):
+    def _start_export(self) -> None:
         self._export_btn.setEnabled(False)
         self._prog_bar.show()
         self._prog_bar.setValue(0)
         self._progress = 0
         self._timer.start()
 
-    def _tick(self):
+    def _tick(self) -> None:
         self._progress += 3
         self._prog_bar.setValue(min(self._progress, 100))
         if self._progress >= 100:
@@ -184,8 +208,12 @@ class ExportPage(QWidget):
             self._export_btn.setText("✓  Exported!")
             self._prog_bar.hide()
             self._prepend_history()
-            QTimer.singleShot(2500, lambda: self._export_btn.setText("  ↑  Export Now"))
-            QTimer.singleShot(2500, lambda: self._export_btn.setEnabled(True))
+            QTimer.singleShot(
+                2500, lambda: self._export_btn.setText("  ↑  Export Now")
+            )
+            QTimer.singleShot(
+                2500, lambda: self._export_btn.setEnabled(True)
+            )
 
     def _build_history_table(self) -> QTableView:
         table = QTableView()
@@ -208,8 +236,9 @@ class ExportPage(QWidget):
             ]
             row[0].setFont(QFont("Cascadia Code", 12))
             for item in row:
-                item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter |
-                                      Qt.AlignmentFlag.AlignLeft)
+                item.setTextAlignment(
+                    Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
+                )
             self._hist_model.appendRow(row)
 
         table.setModel(self._hist_model)
@@ -219,21 +248,20 @@ class ExportPage(QWidget):
             hdr.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
         return table
 
-    def _prepend_history(self):
-        from datetime import date
-        today = date.today().isoformat()
-        name = f"PRJ-001_{self._selected_format}_Export_{today}"
-        ext = {"Excel": ".xlsx", "PDF": ".pdf", "CSV": ".csv"}.get(
+    def _prepend_history(self) -> None:
+        today = _date.today().isoformat()
+        ext   = {"Excel": ".xlsx", "PDF": ".pdf", "CSV": ".csv"}.get(
             self._selected_format, ".xlsx"
         )
         row = [
-            QStandardItem(name + ext),
+            QStandardItem(f"PRJ-001_{self._selected_format}_Export_{today}{ext}"),
             QStandardItem(self._selected_format),
             QStandardItem(today),
             QStandardItem("—"),
         ]
         for item in row:
-            item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter |
-                                  Qt.AlignmentFlag.AlignLeft)
+            item.setTextAlignment(
+                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
+            )
             item.setForeground(QColor("#4ADE80"))
         self._hist_model.insertRow(0, row)

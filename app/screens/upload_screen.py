@@ -1,59 +1,31 @@
-"""3.3 Upload Screen — drag-and-drop zone, file detail card, progress bar."""
+"""
+upload_screen.py — PDF upload screen.
+
+Provides:
+    UploadPage(QWidget)
+        Drag-and-drop zone (DropZone), file detail card, progress bar,
+        and start-processing button.
+"""
 from __future__ import annotations
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                                QPushButton, QProgressBar, QFrame, QFileDialog,
-                                QToolButton, QSizePolicy)
-from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, Signal
-from PySide6.QtGui import QFont, QDragEnterEvent, QDropEvent, QPainter, QPen, QColor
 import os
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+                                QPushButton, QProgressBar, QFrame,
+                                QToolButton, QSizePolicy, QMenu)
+from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtGui import QFont
 
-
-class _DropZone(QFrame):
-    file_dropped = Signal(str)
-    _DASH_COLOR_IDLE   = "#3A3C42"
-    _DASH_COLOR_ACTIVE = "#3E9BFF"
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setAcceptDrops(True)
-        self.setMinimumHeight(300)
-        self._active = False
-
-    def _set_active(self, v: bool):
-        self._active = v
-        self.update()
-
-    def dragEnterEvent(self, e: QDragEnterEvent):
-        if e.mimeData().hasUrls():
-            e.acceptProposedAction()
-            self._set_active(True)
-
-    def dragLeaveEvent(self, e):
-        self._set_active(False)
-
-    def dropEvent(self, e: QDropEvent):
-        self._set_active(False)
-        urls = e.mimeData().urls()
-        if urls:
-            path = urls[0].toLocalFile()
-            if path.lower().endswith(".pdf"):
-                self.file_dropped.emit(path)
-
-    def paintEvent(self, _):
-        p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        pen = QPen(QColor(self._DASH_COLOR_ACTIVE if self._active else self._DASH_COLOR_IDLE))
-        pen.setWidth(2)
-        pen.setStyle(Qt.PenStyle.DashLine)
-        p.setPen(pen)
-        bg = QColor("#3E9BFF" if self._active else "#26272B")
-        bg.setAlphaF(0.06 if self._active else 0.0)
-        p.setBrush(bg)
-        p.drawRoundedRect(2, 2, self.width()-4, self.height()-4, 10, 10)
-        p.end()
+from app.components.upload_widget import DropZone
+from app.components.dialogs import open_pdf_file
 
 
 class UploadPage(QWidget):
+    """
+    Upload screen — drag-and-drop a PDF drawing or browse for one.
+
+    A simulated upload-progress bar and file-detail card are shown after
+    a file is selected.
+    """
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAcceptDrops(True)
@@ -65,7 +37,7 @@ class UploadPage(QWidget):
         root.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # ── Drop zone ─────────────────────────────────────────────
-        self._drop = _DropZone()
+        self._drop = DropZone()
         self._drop.file_dropped.connect(self._on_file)
 
         inner = QVBoxLayout(self._drop)
@@ -154,50 +126,52 @@ class UploadPage(QWidget):
 
         root.addStretch()
 
-        # Fake progress timer
+        # Simulated progress timer
         self._timer = QTimer()
         self._timer.setInterval(60)
         self._prog_val = 0
         self._timer.timeout.connect(self._tick)
 
-    def _browse(self):
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Select PDF Drawing", "", "PDF Files (*.pdf)"
-        )
+    # ── Slots ─────────────────────────────────────────────────────
+
+    def _browse(self) -> None:
+        path = open_pdf_file(self)
         if path:
             self._on_file(path)
 
-    def _show_recent(self):
-        from PySide6.QtWidgets import QMenu
+    def _show_recent(self) -> None:
         menu = QMenu(self)
         for name in ["UCC-E-101.pdf", "LNG-T-501.pdf", "RU7-P-201.pdf",
                      "OP-M-701.pdf", "PL-N-301.pdf"]:
             menu.addAction(name)
         menu.exec(self.mapToGlobal(self._drop.geometry().bottomLeft()))
 
-    def _on_file(self, path: str):
+    def _on_file(self, path: str) -> None:
         self._filepath = path
         name = os.path.basename(path)
-        size_mb = round(os.path.getsize(path) / (1024*1024), 2) if os.path.exists(path) else "?"
+        size_mb = (
+            round(os.path.getsize(path) / (1024 * 1024), 2)
+            if os.path.exists(path) else "?"
+        )
         self._fname.setText(name)
         self._fmeta.setText(f"{size_mb} MB  ·  simulated pages")
         self._file_card.show()
         self._start_btn.setEnabled(True)
 
-    def _clear_file(self):
+    def _clear_file(self) -> None:
         self._filepath = None
         self._file_card.hide()
         self._prog.hide()
         self._prog.setValue(0)
         self._start_btn.setEnabled(False)
 
-    def _start(self):
+    def _start(self) -> None:
         self._prog.show()
         self._prog_val = 0
         self._timer.start()
         self._start_btn.setEnabled(False)
 
-    def _tick(self):
+    def _tick(self) -> None:
         self._prog_val += 2
         self._prog.setValue(min(self._prog_val, 100))
         if self._prog_val >= 100:

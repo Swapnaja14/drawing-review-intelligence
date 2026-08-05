@@ -3,22 +3,22 @@ MainWindow — application shell: sidebar + topbar + stacked pages.
 """
 from __future__ import annotations
 from PySide6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
-                                QStackedWidget, QStatusBar, QLabel)
+                                QStackedWidget)
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
 
-from app.components.sidebar import SidebarNav
-from app.components.topbar import TopBar
-from app.screens.dashboard       import DashboardPage
-from app.screens.upload          import UploadPage
-from app.screens.pdf_viewer      import PdfViewerPage
-from app.screens.comment_highlight import CommentHighlightPage
-from app.screens.ocr_results     import OcrResultsPage
-from app.screens.classification  import ClassificationPage
-from app.screens.human_review    import HumanReviewPage
-from app.screens.analytics       import AnalyticsPage
-from app.screens.export          import ExportPage
-from app.screens.settings        import SettingsPage
+from app.components.sidebar         import SidebarNav
+from app.components.topbar          import TopBar
+from app.components.status_bar      import AppStatusBar
+from app.screens.dashboard_screen      import DashboardPage
+from app.screens.upload_screen         import UploadPage
+from app.screens.pdf_viewer_screen     import PdfViewerPage
+from app.screens.comment_viewer_screen import CommentHighlightPage
+from app.screens.ocr_results_screen    import OcrResultsPage
+from app.screens.classification_screen import ClassificationPage
+from app.screens.review_screen         import HumanReviewPage
+from app.screens.analytics_screen      import AnalyticsPage
+from app.screens.export_screen         import ExportPage
+from app.screens.settings_screen       import SettingsPage
 
 _PAGE_TITLES = [
     "Dashboard",
@@ -87,12 +87,8 @@ class MainWindow(QMainWindow):
         h_layout.addWidget(content_area, 1)
 
         # ── Status bar ────────────────────────────────────────────
-        status = QStatusBar()
-        self.setStatusBar(status)
-        status.addWidget(QLabel("  Ready"))
-        status.addPermanentWidget(
-            QLabel("UCC Analyzer v1.0.0  ·  Python 3.12  ·  PySide6  ")
-        )
+        self._status_bar = AppStatusBar(version="v1.0.0")
+        self.setStatusBar(self._status_bar)
 
     def _navigate(self, idx: int):
         self._stack.setCurrentIndex(idx)

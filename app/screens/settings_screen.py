@@ -1,18 +1,30 @@
-"""3.11 Settings Screen — tabs: Appearance / Application / About."""
+"""
+settings_screen.py — Settings screen.
+
+Provides:
+    SettingsPage(QWidget)
+        Three-tab settings panel: Appearance / Application / About.
+        Uses a left-side tab list and a stacked content area on the right.
+"""
 from __future__ import annotations
 from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QFrame,
                                 QLabel, QListWidget, QListWidgetItem,
                                 QStackedWidget, QComboBox, QSlider,
                                 QCheckBox, QLineEdit, QToolButton,
-                                QPushButton, QFormLayout, QSizePolicy,
-                                QButtonGroup, QFileDialog)
+                                QPushButton, QFormLayout, QButtonGroup)
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QFont
+
+from app.components.dialogs import open_folder
 
 _TABS = ["Appearance", "Application", "About"]
 
 
+# ── Segmented control ─────────────────────────────────────────────────────────
+
 class _SegmentedControl(QWidget):
+    """Horizontal group of mutually-exclusive toggle buttons."""
+
     def __init__(self, options: list[str], parent=None):
         super().__init__(parent)
         lay = QHBoxLayout(self)
@@ -20,19 +32,23 @@ class _SegmentedControl(QWidget):
         lay.setSpacing(0)
         self._group = QButtonGroup(self)
         self._group.setExclusive(True)
+
         for i, opt in enumerate(options):
             btn = QPushButton(opt)
             btn.setCheckable(True)
             btn.setFixedHeight(34)
-            radius_style = ""
             if i == 0:
                 radius_style = "border-radius: 8px 0 0 8px;"
             elif i == len(options) - 1:
                 radius_style = "border-radius: 0 8px 8px 0;"
+            else:
+                radius_style = "border-radius: 0;"
             btn.setStyleSheet(
-                f"QPushButton {{ background:#26272B; color:#A6A9B1; border:1px solid #3A3C42; "
-                f"{radius_style} padding:0 16px; font-size:13px; }}"
-                f"QPushButton:checked {{ background:#3E9BFF; color:#fff; border-color:#3E9BFF; }}"
+                f"QPushButton {{ background:#26272B; color:#A6A9B1;"
+                f" border:1px solid #3A3C42; {radius_style}"
+                f" padding:0 16px; font-size:13px; }}"
+                f"QPushButton:checked {{ background:#3E9BFF;"
+                f" color:#fff; border-color:#3E9BFF; }}"
             )
             self._group.addButton(btn, i)
             lay.addWidget(btn)
@@ -43,7 +59,13 @@ class _SegmentedControl(QWidget):
         return self._group
 
 
+# ── SettingsPage ──────────────────────────────────────────────────────────────
+
 class SettingsPage(QWidget):
+    """
+    Settings — tabbed interface for Appearance, Application, and About.
+    """
+
     def __init__(self, theme_manager=None, parent=None):
         super().__init__(parent)
         self._theme = theme_manager
@@ -58,12 +80,14 @@ class SettingsPage(QWidget):
         tab_list.setFixedWidth(220)
         tab_list.setStyleSheet(
             "#NavList { background: #26272B; border-right:1px solid #3A3C42; }"
-            "#NavList::item { height:44px; padding-left:20px; border-radius:6px; margin:4px 8px; color:#A6A9B1; }"
-            "#NavList::item:selected { background:#3E9BFF2A; color:#3E9BFF; font-weight:600; }"
+            "#NavList::item { height:44px; padding-left:20px; border-radius:6px;"
+            " margin:4px 8px; color:#A6A9B1; }"
+            "#NavList::item:selected { background:#3E9BFF2A;"
+            " color:#3E9BFF; font-weight:600; }"
         )
 
         icons = ["🎨", "⚙", "ℹ"]
-        for i, (tab, icon) in enumerate(zip(_TABS, icons)):
+        for tab, icon in zip(_TABS, icons):
             item = QListWidgetItem(f"  {icon}   {tab}")
             item.setSizeHint(QSize(220, 44))
             tab_list.addItem(item)
@@ -83,23 +107,26 @@ class SettingsPage(QWidget):
 
     def _build_appearance(self) -> QWidget:
         page = QWidget()
-        lay = QVBoxLayout(page)
+        lay  = QVBoxLayout(page)
         lay.setContentsMargins(40, 32, 40, 32)
         lay.setSpacing(28)
-
         lay.addWidget(self._section_title("Appearance"))
 
         form = QFormLayout()
         form.setSpacing(16)
-        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        form.setLabelAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
 
-        # Theme segmented
+        # Theme selector
         theme_ctrl = _SegmentedControl(["Light", "Dark", "System"])
         if self._theme and self._theme.current == "dark":
             theme_ctrl.group.button(1).setChecked(True)
-        def _on_theme(id_: int):
+
+        def _on_theme(id_: int) -> None:
             if self._theme:
                 self._theme.apply("light" if id_ == 0 else "dark")
+
         theme_ctrl.group.idClicked.connect(_on_theme)
         form.addRow(self._form_label("Theme:"), theme_ctrl)
 
@@ -129,15 +156,16 @@ class SettingsPage(QWidget):
 
     def _build_application(self) -> QWidget:
         page = QWidget()
-        lay = QVBoxLayout(page)
+        lay  = QVBoxLayout(page)
         lay.setContentsMargins(40, 32, 40, 32)
         lay.setSpacing(28)
-
         lay.addWidget(self._section_title("Application"))
 
         form = QFormLayout()
         form.setSpacing(16)
-        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        form.setLabelAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
 
         # Default folder
         folder_row = QHBoxLayout()
@@ -176,7 +204,7 @@ class SettingsPage(QWidget):
 
     def _build_about(self) -> QWidget:
         page = QWidget()
-        lay = QVBoxLayout(page)
+        lay  = QVBoxLayout(page)
         lay.setContentsMargins(40, 32, 40, 32)
         lay.setSpacing(16)
         lay.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
@@ -196,7 +224,8 @@ class SettingsPage(QWidget):
         ver.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(ver)
 
-        sep = QFrame(); sep.setFrameShape(QFrame.Shape.HLine)
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
         lay.addWidget(sep)
 
         for key, val in [
@@ -234,7 +263,7 @@ class SettingsPage(QWidget):
         lbl.setObjectName("FormLabel")
         return lbl
 
-    def _browse_folder(self):
-        path = QFileDialog.getExistingDirectory(self, "Select Default Folder")
+    def _browse_folder(self) -> None:
+        path = open_folder(self)
         if path:
             self._folder_edit.setText(path)

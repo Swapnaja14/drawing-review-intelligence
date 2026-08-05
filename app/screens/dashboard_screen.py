@@ -1,10 +1,15 @@
-"""3.2 Home Dashboard — KPI cards, recent projects table, activity feed, processing status."""
+"""
+dashboard_screen.py — Home Dashboard screen.
+
+Displays KPI metric cards, a recent-projects table, an activity feed,
+and a processing-status panel.
+"""
 from __future__ import annotations
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame,
                                 QLabel, QTableView, QListWidget, QListWidgetItem,
                                 QPushButton, QProgressBar, QHeaderView, QSizePolicy,
                                 QAbstractItemView)
-from PySide6.QtGui import QFont, QStandardItemModel, QStandardItem, QColor
+from PySide6.QtGui import QFont, QStandardItemModel, QStandardItem
 from PySide6.QtCore import Qt, Signal, QSize
 
 from app.components.kpi_card import KpiCard
@@ -12,13 +17,13 @@ from app.components.chips import StatusChip
 from app import mock_data as md
 
 try:
-    import qtawesome as qta
+    import qtawesome as qta  # noqa: F401
     _HAS_QTA = True
 except ImportError:
     _HAS_QTA = False
 
 
-# ── Helper ────────────────────────────────────────────────────────────────────
+# ── Private helpers ───────────────────────────────────────────────────────────
 
 def _card(parent=None) -> QFrame:
     f = QFrame(parent)
@@ -33,10 +38,20 @@ def _h2(text: str) -> QLabel:
     return lbl
 
 
-# ── Dashboard Page ────────────────────────────────────────────────────────────
+# ── DashboardPage ─────────────────────────────────────────────────────────────
 
 class DashboardPage(QWidget):
-    open_project = Signal(str)   # emits project id
+    """
+    Home Dashboard — KPI cards, recent projects table, activity feed,
+    and processing status.
+
+    Signals
+    -------
+    open_project : str
+        Emitted with the project ID when a project row is activated.
+    """
+
+    open_project = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -48,10 +63,14 @@ class DashboardPage(QWidget):
         kpi_row = QHBoxLayout()
         kpi_row.setSpacing(16)
         kpis = [
-            ("fa5s.folder-open", str(md.KPI["total_projects"]),    "Total Projects",       md.KPI["trend_projects"],  "#3E9BFF"),
-            ("fa5s.file-alt",    str(md.KPI["drawings_processed"]),"Drawings Processed",   md.KPI["trend_drawings"],  "#8B9CFF"),
-            ("fa5s.comments",    str(md.KPI["comments_detected"]), "Comments Detected",    md.KPI["trend_comments"],  "#FBBF24"),
-            ("fa5s.check-circle",f'{md.KPI["accuracy"]}%',         "OCR Accuracy",         md.KPI["trend_accuracy"],  "#4ADE80"),
+            ("fa5s.folder-open", str(md.KPI["total_projects"]),
+             "Total Projects",    md.KPI["trend_projects"],  "#3E9BFF"),
+            ("fa5s.file-alt",    str(md.KPI["drawings_processed"]),
+             "Drawings Processed", md.KPI["trend_drawings"], "#8B9CFF"),
+            ("fa5s.comments",    str(md.KPI["comments_detected"]),
+             "Comments Detected", md.KPI["trend_comments"],  "#FBBF24"),
+            ("fa5s.check-circle", f'{md.KPI["accuracy"]}%',
+             "OCR Accuracy",      md.KPI["trend_accuracy"],  "#4ADE80"),
         ]
         for icon, val, lbl, trend, color in kpis:
             card = KpiCard(icon, val, lbl, trend, color)
@@ -63,9 +82,11 @@ class DashboardPage(QWidget):
         split = QHBoxLayout()
         split.setSpacing(16)
 
-        # Recent projects (left, stretch 2)
+        # Recent projects table (left, stretch 2)
         proj_card = _card()
-        proj_card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        proj_card.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         proj_lay = QVBoxLayout(proj_card)
         proj_lay.setContentsMargins(16, 16, 16, 16)
         proj_lay.setSpacing(12)
@@ -92,8 +113,7 @@ class DashboardPage(QWidget):
         act_lay.setContentsMargins(16, 16, 16, 16)
         act_lay.setSpacing(8)
         act_lay.addWidget(_h2("Recent Activity"))
-        act_list = self._build_activity_list()
-        act_lay.addWidget(act_list, 1)
+        act_lay.addWidget(self._build_activity_list(), 1)
         right_col.addWidget(act_card, 1)
 
         # Processing status
@@ -109,7 +129,7 @@ class DashboardPage(QWidget):
         split.addLayout(right_col, 1)
         root.addLayout(split, 1)
 
-    # ── Sub-builders ─────────────────────────────────────────────
+    # ── Sub-builders ──────────────────────────────────────────────
 
     def _build_projects_table(self) -> QTableView:
         table = QTableView()
@@ -135,7 +155,9 @@ class DashboardPage(QWidget):
             ]
             row[0].setFont(QFont("Cascadia Code", 13))
             for item in row:
-                item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+                item.setTextAlignment(
+                    Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
+                )
             model.appendRow(row)
 
         table.setModel(model)
@@ -157,6 +179,7 @@ class DashboardPage(QWidget):
     def _build_job_row(self, job: dict) -> QHBoxLayout:
         row = QHBoxLayout()
         row.setSpacing(10)
+
         name_lbl = QLabel(job["name"])
         name_lbl.setFixedWidth(200)
         name_lbl.setStyleSheet("color: #A6A9B1; font-size:13px;")
@@ -165,10 +188,10 @@ class DashboardPage(QWidget):
         bar = QProgressBar()
         bar.setValue(job["progress"])
         bar.setFixedHeight(6)
+        chunk_color = "#4ADE80" if job["progress"] == 100 else "#3E9BFF"
         bar.setStyleSheet(
-            f"QProgressBar {{ background:#3A3C42; border-radius:3px; }}"
-            f"QProgressBar::chunk {{ background: "
-            f"{'#4ADE80' if job['progress']==100 else '#3E9BFF'}; border-radius:3px; }}"
+            "QProgressBar { background:#3A3C42; border-radius:3px; }"
+            f"QProgressBar::chunk {{ background: {chunk_color}; border-radius:3px; }}"
         )
         row.addWidget(bar, 1)
 
