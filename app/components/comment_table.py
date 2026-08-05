@@ -68,7 +68,6 @@ class ConfidenceDelegate(QStyledItemDelegate):
                 QRect(bar.x(), bar.y(), fill_w, bar.height()), 4, 4
             )
 
-        # Percentage label
         painter.setPen(QColor("#F2F3F5"))
         painter.setFont(QFont("Cascadia Code", 11))
         painter.drawText(
@@ -105,14 +104,17 @@ class StatusDelegate(QStyledItemDelegate):
             painter.fillRect(option.rect, QColor("#3E9BFF22"))
 
         text_c, bg_c = self._STATUS_COLORS.get(status, ("#A6A9B1", "#3A3C42"))
-        pill_w, pill_h = 80, 22
+
+        # Pill: at least 100 px wide, but never wider than the cell minus 16 px padding
+        pill_h = 24
+        pill_w = min(max(100, len(status) * 12), option.rect.width() - 16)
         x = option.rect.x() + (option.rect.width() - pill_w) // 2
         y = option.rect.y() + (option.rect.height() - pill_h) // 2
 
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setBrush(QColor(bg_c))
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawRoundedRect(x, y, pill_w, pill_h, 4, 4)
+        painter.drawRoundedRect(x, y, pill_w, pill_h, 5, 5)
         painter.setPen(QColor(text_c))
         painter.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         painter.drawText(

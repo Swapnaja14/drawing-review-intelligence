@@ -127,7 +127,8 @@ def build_pareto_chart():
     cumuls = md.PARETO_DATA["cumulative"]
 
     bar_set = QBarSet("Count")
-    bar_set.setColor(QColor("#3E9BFF"))
+    bar_set.setColor(QColor("#FFFFFF"))
+    bar_set.setBorderColor(QColor("#CCCCCC"))
     for v in counts:
         bar_set.append(v)
 
