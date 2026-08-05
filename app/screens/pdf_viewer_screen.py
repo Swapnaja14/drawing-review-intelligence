@@ -3,33 +3,36 @@ pdf_viewer_screen.py — PDF Viewer screen.
 
 Provides:
     PdfViewerPage(QWidget)
-        Simulated canvas, zoom / page controls via PdfToolbar, drawing
-        metadata panel, and thumbnail strip.
+        Renders real PDF pages using PyMuPDF backend via AppController,
+        zoom / page controls via PdfToolbar, metadata panel, and thumbnail strip.
 """
 from __future__ import annotations
+from pathlib import Path
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
                                 QGraphicsView, QGraphicsScene,
                                 QListWidget, QListWidgetItem,
-                                QSizePolicy, QAbstractItemView)
+                                QSizePolicy)
 from PySide6.QtCore import Qt, QRectF, QSize
-from PySide6.QtGui import QPainter
+from PySide6.QtGui import QPainter, QPixmap, QIcon
 
 from app.components.pdf_toolbar    import PdfToolbar
 from app.components.pdf_canvas     import make_page_pixmap
 from app.components.metadata_panel import DrawingMetadataPanel
+from src.core.dtos.pdf_dtos import PDFDocumentDTO
 
 
 class PdfViewerPage(QWidget):
     """
-    PDF Viewer — simulated canvas with toolbar, metadata panel,
-    and thumbnail strip.
+    PDF Viewer screen displaying real PDF drawing pages rendered via PyMuPDF backend.
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, controller=None, parent=None):
         super().__init__(parent)
+        self._controller = controller
+        self._doc_dto: PDFDocumentDTO | None = None
         self._zoom         = 1.0
         self._current_page = 1
-        self._total_pages  = 3
+        self._total_pages  = 1
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -76,11 +79,32 @@ class PdfViewerPage(QWidget):
         self._thumb_strip = self._build_thumbnail_strip()
         root.addWidget(self._thumb_strip)
 
+    def set_document(self, doc_dto: PDFDocumentDTO) -> None:
+        """Sets the active PDFDocumentDTO and updates page count, metadata, & canvas."""
+        self._doc_dto = doc_dto
+        self._total_pages = doc_dto.total_pages
+        self._current_page = 1
+        self._toolbar.update_total_pages(self._total_pages)
+        self._sync_thumbnails()
+        self._load_page(1)
+
     # ── Page / zoom helpers ───────────────────────────────────────
 
     def _load_page(self, page_num: int) -> None:
         self._scene.clear()
-        pm = make_page_pixmap()
+        if self._doc_dto and self._controller:
+            try:
+                # Render real page using PyMuPDF backend adapter
+                rendered_dto = self._controller.pdf_service.get_page_render(
+                    self._doc_dto.file_path, page_num, dpi=150
+                )
+                pm = QPixmap()
+                pm.loadFromData(rendered_dto.image_bytes)
+            except Exception as e:
+                pm = make_page_pixmap()
+        else:
+            pm = make_page_pixmap()
+
         self._pm_item = self._scene.addPixmap(pm)
         self._scene.setSceneRect(QRectF(pm.rect()))
         self._apply_zoom()
@@ -102,7 +126,7 @@ class PdfViewerPage(QWidget):
         if self._pm_item:
             w  = self._pm_item.pixmap().width()
             vw = self._view.viewport().width()
-            self._zoom = vw / w * 0.95
+            self._zoom = vw / w * 0.95 if w > 0 else 1.0
             self._apply_zoom()
 
     def _rotate(self) -> None:
@@ -119,14 +143,16 @@ class PdfViewerPage(QWidget):
     def _goto_page(self, page: int) -> None:
         self._current_page = page
         self._load_page(self._current_page)
-        self._thumb_strip.setCurrentRow(self._current_page - 1)
+        if self._thumb_strip.count() >= self._current_page:
+            self._thumb_strip.setCurrentRow(self._current_page - 1)
 
     def _sync_page(self) -> None:
         self._toolbar.set_current_page(self._current_page)
-        self._thumb_strip.setCurrentRow(self._current_page - 1)
+        if self._thumb_strip.count() >= self._current_page:
+            self._thumb_strip.setCurrentRow(self._current_page - 1)
         self._load_page(self._current_page)
 
-    # ── Thumbnail strip builder ───────────────────────────────────
+    # ── Thumbnail strip ───────────────────────────────────────────
 
     def _build_thumbnail_strip(self) -> QListWidget:
         lst = QListWidget()
@@ -144,13 +170,30 @@ class PdfViewerPage(QWidget):
             "QListWidget::item:selected { border-color:#3E9BFF; }"
         )
         lst.currentRowChanged.connect(
-            lambda r: self._toolbar.set_current_page(r + 1)
+            lambda r: self._toolbar.set_current_page(r + 1) if r >= 0 else None
         )
+        self._populate_thumbs(lst)
+        return lst
 
+    def _populate_thumbs(self, lst: QListWidget) -> None:
+        lst.clear()
         for i in range(self._total_pages):
-            pm   = make_page_pixmap(70, 88)
+            if self._doc_dto and self._controller:
+                try:
+                    r_dto = self._controller.pdf_service.get_page_render(
+                        self._doc_dto.file_path, i + 1, dpi=30
+                    )
+                    pm = QPixmap()
+                    pm.loadFromData(r_dto.image_bytes)
+                except Exception:
+                    pm = make_page_pixmap(70, 88)
+            else:
+                pm = make_page_pixmap(70, 88)
+
             item = QListWidgetItem(f"  {i + 1}")
-            item.setIcon(pm)   # type: ignore[arg-type]
+            item.setIcon(QIcon(pm))
             lst.addItem(item)
         lst.setCurrentRow(0)
-        return lst
+
+    def _sync_thumbnails(self) -> None:
+        self._populate_thumbs(self._thumb_strip)

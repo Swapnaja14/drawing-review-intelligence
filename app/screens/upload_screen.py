@@ -4,10 +4,11 @@ upload_screen.py — PDF upload screen.
 Provides:
     UploadPage(QWidget)
         Drag-and-drop zone (DropZone), file detail card, progress bar,
-        and start-processing button.
+        and start-processing button connected to AppController backend.
 """
 from __future__ import annotations
 import os
+from pathlib import Path
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                 QPushButton, QProgressBar, QFrame,
                                 QToolButton, QSizePolicy, QMenu)
@@ -21,15 +22,14 @@ from app.components.dialogs import open_pdf_file
 class UploadPage(QWidget):
     """
     Upload screen — drag-and-drop a PDF drawing or browse for one.
-
-    A simulated upload-progress bar and file-detail card are shown after
-    a file is selected.
+    Integrates with AppController for backend PDF loading & processing.
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, controller=None, parent=None):
         super().__init__(parent)
         self.setAcceptDrops(True)
         self._filepath: str | None = None
+        self._controller = controller
 
         root = QVBoxLayout(self)
         root.setContentsMargins(40, 40, 40, 40)
@@ -77,7 +77,7 @@ class UploadPage(QWidget):
 
         root.addWidget(self._drop)
 
-        # ── Selected file card (hidden by default) ────────────────
+        # ── Selected file card ────────────────────────────────────
         self._file_card = QFrame()
         self._file_card.setObjectName("Card")
         self._file_card.hide()
@@ -126,11 +126,16 @@ class UploadPage(QWidget):
 
         root.addStretch()
 
-        # Simulated progress timer
-        self._timer = QTimer()
-        self._timer.setInterval(60)
-        self._prog_val = 0
-        self._timer.timeout.connect(self._tick)
+        # Connect controller signals if available
+        if self._controller:
+            self._controller.document_loaded_signal.connect(self._on_doc_loaded)
+            self._controller.processing_error_signal.connect(self._on_doc_error)
+
+    def set_controller(self, controller) -> None:
+        self._controller = controller
+        if self._controller:
+            self._controller.document_loaded_signal.connect(self._on_doc_loaded)
+            self._controller.processing_error_signal.connect(self._on_doc_error)
 
     # ── Slots ─────────────────────────────────────────────────────
 
@@ -141,8 +146,7 @@ class UploadPage(QWidget):
 
     def _show_recent(self) -> None:
         menu = QMenu(self)
-        for name in ["UCC-E-101.pdf", "LNG-T-501.pdf", "RU7-P-201.pdf",
-                     "OP-M-701.pdf", "PL-N-301.pdf"]:
+        for name in ["UCC-E-101.pdf", "LNG-T-501.pdf", "RU7-P-201.pdf"]:
             menu.addAction(name)
         menu.exec(self.mapToGlobal(self._drop.geometry().bottomLeft()))
 
@@ -154,7 +158,7 @@ class UploadPage(QWidget):
             if os.path.exists(path) else "?"
         )
         self._fname.setText(name)
-        self._fmeta.setText(f"{size_mb} MB  ·  simulated pages")
+        self._fmeta.setText(f"{size_mb} MB  · Ready for Backend Validation")
         self._file_card.show()
         self._start_btn.setEnabled(True)
 
@@ -166,15 +170,25 @@ class UploadPage(QWidget):
         self._start_btn.setEnabled(False)
 
     def _start(self) -> None:
+        if not self._filepath:
+            return
+
         self._prog.show()
-        self._prog_val = 0
-        self._timer.start()
+        self._prog.setValue(30)
+        self._start_btn.setText("Processing PDF...")
         self._start_btn.setEnabled(False)
 
-    def _tick(self) -> None:
-        self._prog_val += 2
-        self._prog.setValue(min(self._prog_val, 100))
-        if self._prog_val >= 100:
-            self._timer.stop()
-            self._start_btn.setText("  ✓  Processing Complete")
-            self._start_btn.setEnabled(False)
+        if self._controller:
+            # Trigger real backend background thread PDF processing
+            self._controller.load_pdf_file(self._filepath)
+        else:
+            self._prog.setValue(100)
+
+    def _on_doc_loaded(self, doc_dto) -> None:
+        self._prog.setValue(100)
+        self._start_btn.setText("  ✓  Processing Complete")
+
+    def _on_doc_error(self, error_msg: str) -> None:
+        self._prog.hide()
+        self._start_btn.setText(f"Error: {error_msg[:20]}...")
+        self._start_btn.setEnabled(True)

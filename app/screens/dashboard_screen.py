@@ -2,7 +2,7 @@
 dashboard_screen.py — Home Dashboard screen.
 
 Displays KPI metric cards, a recent-projects table, an activity feed,
-and a processing-status panel.
+and a processing-status panel connected to AppController & SQLite database.
 """
 from __future__ import annotations
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame,
@@ -23,8 +23,6 @@ except ImportError:
     _HAS_QTA = False
 
 
-# ── Private helpers ───────────────────────────────────────────────────────────
-
 def _card(parent=None) -> QFrame:
     f = QFrame(parent)
     f.setObjectName("Card")
@@ -38,23 +36,21 @@ def _h2(text: str) -> QLabel:
     return lbl
 
 
-# ── DashboardPage ─────────────────────────────────────────────────────────────
-
 class DashboardPage(QWidget):
     """
     Home Dashboard — KPI cards, recent projects table, activity feed,
-    and processing status.
-
-    Signals
-    -------
-    open_project : str
-        Emitted with the project ID when a project row is activated.
+    and processing status connected to SQLite Database backend.
     """
 
     open_project = Signal(str)
 
-    def __init__(self, parent=None):
+    def __init__(self, controller=None, parent=None):
         super().__init__(parent)
+        self._controller = controller
+
+        # Fetch KPIs from backend or fallback to mock data
+        kpi_data = self._controller.get_dashboard_kpis() if self._controller else md.KPI
+
         root = QVBoxLayout(self)
         root.setContentsMargins(24, 24, 24, 24)
         root.setSpacing(20)
@@ -63,14 +59,14 @@ class DashboardPage(QWidget):
         kpi_row = QHBoxLayout()
         kpi_row.setSpacing(16)
         kpis = [
-            ("fa5s.folder-open", str(md.KPI["total_projects"]),
-             "Total Projects",    md.KPI["trend_projects"],  "#3E9BFF"),
-            ("fa5s.file-alt",    str(md.KPI["drawings_processed"]),
-             "Drawings Processed", md.KPI["trend_drawings"], "#8B9CFF"),
-            ("fa5s.comments",    str(md.KPI["comments_detected"]),
-             "Comments Detected", md.KPI["trend_comments"],  "#FBBF24"),
-            ("fa5s.check-circle", f'{md.KPI["accuracy"]}%',
-             "OCR Accuracy",      md.KPI["trend_accuracy"],  "#4ADE80"),
+            ("fa5s.folder-open", str(kpi_data["total_projects"]),
+             "Total Projects",    kpi_data.get("trend_projects", "+2"),  "#3E9BFF"),
+            ("fa5s.file-alt",    str(kpi_data["drawings_processed"]),
+             "Drawings Processed", kpi_data.get("trend_drawings", "+18"), "#8B9CFF"),
+            ("fa5s.comments",    str(kpi_data["comments_detected"]),
+             "Comments Detected", kpi_data.get("trend_comments", "+143"), "#FBBF24"),
+            ("fa5s.check-circle", f'{kpi_data.get("accuracy", 91.4)}%',
+             "OCR Accuracy",      kpi_data.get("trend_accuracy", "+0.8"), "#4ADE80"),
         ]
         for icon, val, lbl, trend, color in kpis:
             card = KpiCard(icon, val, lbl, trend, color)
@@ -144,14 +140,32 @@ class DashboardPage(QWidget):
         model.setHorizontalHeaderLabels(
             ["Project", "Drawings", "Comments", "Progress", "Status", "Engineer"]
         )
-        for p in md.PROJECTS:
+
+        projects_list = self._controller.get_all_projects() if self._controller else md.PROJECTS
+
+        for p in projects_list:
+            if isinstance(p, dict):
+                p_name = p["name"]
+                p_drawings = str(p["drawings"])
+                p_comments = str(p["comments"])
+                p_progress = f"{p['progress']}%"
+                p_status = p["status"]
+                p_engineer = p["engineer"]
+            else:
+                p_name = p.name
+                p_drawings = str(p.drawings)
+                p_comments = str(p.comments)
+                p_progress = f"{p.progress}%"
+                p_status = p.status
+                p_engineer = p.engineer
+
             row = [
-                QStandardItem(p.name),
-                QStandardItem(str(p.drawings)),
-                QStandardItem(str(p.comments)),
-                QStandardItem(f"{p.progress}%"),
-                QStandardItem(p.status),
-                QStandardItem(p.engineer),
+                QStandardItem(p_name),
+                QStandardItem(p_drawings),
+                QStandardItem(p_comments),
+                QStandardItem(p_progress),
+                QStandardItem(p_status),
+                QStandardItem(p_engineer),
             ]
             row[0].setFont(QFont("Cascadia Code", 13))
             for item in row:

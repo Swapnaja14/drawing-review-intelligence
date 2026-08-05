@@ -1,5 +1,6 @@
 """
 MainWindow — application shell: sidebar + topbar + stacked pages.
+Integrates backend AppController with PySide6 GUI screens.
 """
 from __future__ import annotations
 from PySide6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
@@ -19,6 +20,8 @@ from app.screens.review_screen         import HumanReviewPage
 from app.screens.analytics_screen      import AnalyticsPage
 from app.screens.export_screen         import ExportPage
 from app.screens.settings_screen       import SettingsPage
+
+from src.controllers.app_controller import AppController
 
 _PAGE_TITLES = [
     "Dashboard",
@@ -40,6 +43,9 @@ class MainWindow(QMainWindow):
         self._theme = theme_manager
         self.setWindowTitle("UCC AI Drawing Review Comment Analyzer")
         self.showMaximized()
+
+        # ── Backend Controller Initialization ─────────────────────
+        self.controller = AppController(self)
 
         # ── Central widget ────────────────────────────────────────
         central = QWidget()
@@ -68,10 +74,17 @@ class MainWindow(QMainWindow):
 
         # Stacked pages
         self._stack = QStackedWidget()
+        self.upload_page = UploadPage(controller=self.controller)
+        self.pdf_viewer_page = PdfViewerPage(controller=self.controller)
+        self.dashboard_page = DashboardPage(controller=self.controller)
+
+        # Connect Upload controller signals to navigate to PDF Viewer
+        self.controller.document_loaded_signal.connect(self._on_document_loaded)
+
         self._pages = [
-            DashboardPage(),
-            UploadPage(),
-            PdfViewerPage(),
+            self.dashboard_page,
+            self.upload_page,
+            self.pdf_viewer_page,
             CommentHighlightPage(),
             OcrResultsPage(),
             ClassificationPage(),
@@ -87,15 +100,23 @@ class MainWindow(QMainWindow):
         h_layout.addWidget(content_area, 1)
 
         # ── Status bar ────────────────────────────────────────────
-        self._status_bar = AppStatusBar(version="v1.0.0")
+        self._status_bar = AppStatusBar(version="v1.0.0 — Backend Connected")
         self.setStatusBar(self._status_bar)
 
     def _navigate(self, idx: int):
         self._stack.setCurrentIndex(idx)
         self._topbar.set_breadcrumb(_PAGE_TITLES[idx])
-        # Give keyboard focus to pages that need it (e.g. Human Review)
         self._pages[idx].setFocus()
 
     def _on_theme_toggle(self):
         if self._theme:
             self._theme.toggle()
+
+    def _on_document_loaded(self, doc_dto):
+        """Callback when background PDF worker completes loading document."""
+        self._status_bar.set_message(f"Loaded: {doc_dto.file_name} ({doc_dto.total_pages} pages)")
+        # Update PDF Viewer page
+        self.pdf_viewer_page.set_document(doc_dto)
+        # Navigate to PDF Viewer screen (Index 2)
+        self._navigate(2)
+        self._sidebar.set_active_index(2)
