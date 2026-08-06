@@ -15,7 +15,7 @@ Provides:
 All three delegates share the same selection highlight behaviour.
 """
 from __future__ import annotations
-from PySide6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem
+from PySide6.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, QStyle
 from PySide6.QtGui import QPainter, QColor, QFont
 from PySide6.QtCore import Qt, QModelIndex, QRect
 
@@ -41,7 +41,7 @@ class ConfidenceDelegate(QStyledItemDelegate):
 
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        if option.state & 0x0001:   # selected
+        if option.state & QStyle.StateFlag.State_Selected:   # selected
             painter.fillRect(option.rect, QColor("#3E9BFF22"))
 
         # Track
@@ -100,7 +100,7 @@ class StatusDelegate(QStyledItemDelegate):
             super().paint(painter, option, index)
             return
 
-        if option.state & 0x0001:
+        if option.state & QStyle.StateFlag.State_Selected:
             painter.fillRect(option.rect, QColor("#3E9BFF22"))
 
         text_c, bg_c = self._STATUS_COLORS.get(status, ("#A6A9B1", "#3A3C42"))
@@ -152,7 +152,7 @@ class CategoryDelegate(QStyledItemDelegate):
             super().paint(painter, option, index)
             return
 
-        if option.state & 0x0001:
+        if option.state & QStyle.StateFlag.State_Selected:
             painter.fillRect(option.rect, QColor("#3E9BFF22"))
 
         text_c, bg_c = self._CAT_BG.get(cat, ("#A6A9B1", "#2d2f34"))
