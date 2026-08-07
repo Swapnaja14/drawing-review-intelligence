@@ -21,7 +21,7 @@ from app.screens.analytics_screen      import AnalyticsPage
 from app.screens.export_screen         import ExportPage
 from app.screens.settings_screen       import SettingsPage
 
-from src.controllers.app_controller import AppController
+from app.controllers.app_controller import AppController
 
 _PAGE_TITLES = [
     "Dashboard",
@@ -119,4 +119,4 @@ class MainWindow(QMainWindow):
         self.pdf_viewer_page.set_document(doc_dto)
         # Navigate to PDF Viewer screen (Index 2)
         self._navigate(2)
-        self._sidebar.set_active_index(2)
+        self._sidebar.set_page(2)

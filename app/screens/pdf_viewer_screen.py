@@ -84,7 +84,7 @@ class PdfViewerPage(QWidget):
         self._doc_dto = doc_dto
         self._total_pages = doc_dto.total_pages
         self._current_page = 1
-        self._toolbar.update_total_pages(self._total_pages)
+        self._toolbar.set_total_pages(self._total_pages)
         self._sync_thumbnails()
         self._load_page(1)
 
