@@ -15,7 +15,7 @@ from PySide6.QtCore import QTimer, Qt
 from PySide6.QtGui import QFont, QFontDatabase
 
 from app.theme import ThemeManager
-from app.screens.splash import SplashScreen
+from app.screens.splash_screen import SplashScreen
 from app.main_window import MainWindow
 
 
