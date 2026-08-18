@@ -84,7 +84,24 @@ class PdfViewerPage(QWidget):
         self._doc_dto = doc_dto
         self._total_pages = doc_dto.total_pages
         self._current_page = 1
-        self._toolbar.update_total_pages(self._total_pages)
+        
+        # Update toolbar page count
+        self._toolbar.set_total_pages(self._total_pages)
+        self._toolbar.set_current_page(1)
+
+        # Update right-side metadata panel with real drawing properties
+        fields = [
+            ("File Name", doc_dto.file_name),
+            ("File Size", f"{round(doc_dto.file_size_bytes / (1024*1024), 2)} MB"),
+            ("Total Pages", str(doc_dto.total_pages)),
+            ("Format", "Scanned Image" if doc_dto.is_scanned else "Native Digital Vector"),
+            ("Title", doc_dto.title or "Engineering Drawing"),
+            ("Author", doc_dto.author or "CAD System"),
+            ("File Digest", f"{doc_dto.file_hash_sha256[:12]}..."),
+        ]
+        self._meta_panel.update_fields(fields)
+
+        # Sync thumbnails & render page 1
         self._sync_thumbnails()
         self._load_page(1)
 
@@ -157,7 +174,7 @@ class PdfViewerPage(QWidget):
     def _build_thumbnail_strip(self) -> QListWidget:
         lst = QListWidget()
         lst.setFlow(QListWidget.Flow.LeftToRight)
-        lst.setFixedHeight(100)
+        lst.setFixedHeight(110)
         lst.setIconSize(QSize(64, 80))
         lst.setViewMode(QListWidget.ViewMode.IconMode)
         lst.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
@@ -170,7 +187,7 @@ class PdfViewerPage(QWidget):
             "QListWidget::item:selected { border-color:#3E9BFF; }"
         )
         lst.currentRowChanged.connect(
-            lambda r: self._toolbar.set_current_page(r + 1) if r >= 0 else None
+            lambda r: self._goto_page(r + 1) if r >= 0 else None
         )
         self._populate_thumbs(lst)
         return lst
@@ -190,10 +207,11 @@ class PdfViewerPage(QWidget):
             else:
                 pm = make_page_pixmap(70, 88)
 
-            item = QListWidgetItem(f"  {i + 1}")
+            item = QListWidgetItem(f" Page {i + 1}")
             item.setIcon(QIcon(pm))
             lst.addItem(item)
-        lst.setCurrentRow(0)
+        if lst.count() > 0:
+            lst.setCurrentRow(0)
 
     def _sync_thumbnails(self) -> None:
         self._populate_thumbs(self._thumb_strip)

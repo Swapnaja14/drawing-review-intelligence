@@ -1,15 +1,29 @@
 """
 src/infrastructure/storage/models.py
-SQLAlchemy ORM Data Models for SQLite Database.
+SQLAlchemy ORM Data Models for SQLite Database (Projects, Drawings, Pages, Comments, Users).
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import (
     Column, String, Integer, Float, Boolean, DateTime, ForeignKey, Text
 )
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
+
+
+class UserModel(Base):
+    """Database model for application user accounts & authentication."""
+    __tablename__ = "users"
+
+    id = Column(String(50), primary_key=True)
+    username = Column(String(100), unique=True, nullable=False, index=True)
+    email = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    salt = Column(String(64), nullable=False)
+    role = Column(String(50), default="Engineer") # "Lead Engineer", "Reviewer", "Admin"
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_login = Column(DateTime, nullable=True)
 
 
 class ProjectModel(Base):
@@ -24,7 +38,7 @@ class ProjectModel(Base):
     progress = Column(Integer, default=0)         # 0-100%
     last_modified = Column(String(50), nullable=False)
     engineer = Column(String(100), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     drawings_list = relationship("DrawingModel", back_populates="project", cascade="all, delete-orphan")
@@ -42,7 +56,7 @@ class DrawingModel(Base):
     file_hash_sha256 = Column(String(64), nullable=False, index=True)
     total_pages = Column(Integer, nullable=False)
     is_scanned = Column(Boolean, default=False)
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    uploaded_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     project = relationship("ProjectModel", back_populates="drawings_list")
@@ -85,7 +99,7 @@ class CommentModel(Base):
     bbox_x1 = Column(Float, nullable=False)
     bbox_y1 = Column(Float, nullable=False)
     is_verified_by_human = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     drawing = relationship("DrawingModel", back_populates="comments_list")
