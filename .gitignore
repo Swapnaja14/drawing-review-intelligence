@@ -98,6 +98,10 @@ ui_*.py
 *.sqlite
 *.sqlite3
 drawing_comments.db
+data/*.db
+data/*.db-journal
+data/*.db-shm
+data/*.db-wal
 *.db-journal
 *.db-shm
 *.db-wal
@@ -131,9 +135,12 @@ $RECYCLE.BIN/
 # test_files/
 # samples/
 
+# Dataset - Raw drawings folder (large PDF files)
+dataset/raw_drawings/
+raw_drawings/
 # Dataset - Raw drawings folder (large files)
 dataset/raw_drawings/
-dataset/raw_drawings/**
+dataset/raw_drawings/*
 
 # Documentation builds
 docs/_build/

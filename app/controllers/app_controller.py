@@ -7,11 +7,21 @@ from pathlib import Path
 from typing import Optional
 from PySide6.QtCore import QObject, QThread, Signal
 
+from pathlib import Path
+
 from src.services.pdf_service import PDFService
 from src.infrastructure.pdf.pymupdf_adapter import PyMuPDFAdapter
-from src.infrastructure.storage.repository import DatabaseEngine, DrawingRepository, ProjectRepository
+from src.infrastructure.storage.repository import (
+    DatabaseEngine,
+    DrawingRepository,
+    ProjectRepository,
+)
 from src.core.dtos.pdf_dtos import PDFDocumentDTO, RenderedPageDTO
 from src.infrastructure.logging.logger import get_logger
+
+# Resolve project root so the DB path is correct regardless of CWD
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_DB_PATH = _PROJECT_ROOT / "data" / "ucc_database.db"
 
 logger = get_logger("AppController")
 
@@ -79,7 +89,7 @@ class AppController(QObject):
         super().__init__(parent)
         self.pdf_adapter = PyMuPDFAdapter()
         self.pdf_service = PDFService(pdf_loader=self.pdf_adapter)
-        self.db_engine = DatabaseEngine()
+        self.db_engine = DatabaseEngine(db_path=_DB_PATH)
         self.drawing_repo = DrawingRepository(self.db_engine)
         self.project_repo = ProjectRepository(self.db_engine)
 
