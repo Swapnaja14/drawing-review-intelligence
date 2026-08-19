@@ -131,6 +131,10 @@ $RECYCLE.BIN/
 # test_files/
 # samples/
 
+# Dataset - Raw drawings folder (large files)
+dataset/raw_drawings/
+dataset/raw_drawings/**
+
 # Documentation builds
 docs/_build/
 site/
