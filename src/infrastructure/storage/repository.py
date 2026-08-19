@@ -1,106 +1,159 @@
 """
 src/infrastructure/storage/repository.py
-Repository Pattern Implementation for SQLite Database operations.
+SQLAlchemy 2.x session factory, engine initialisation, and repository classes.
+
+Database file: data/ucc_database.db  (relative to the project root)
+The data/ directory is created automatically if it does not exist.
+No seed / mock data is inserted anywhere in this module.
 """
 
-from pathlib import Path
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone
+from __future__ import annotations
+
 import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.orm import Session, sessionmaker
 
-from src.infrastructure.storage.models import (
-    Base, ProjectModel, DrawingModel, PageModel, CommentModel
-)
 from src.core.dtos.pdf_dtos import PDFDocumentDTO
 from src.infrastructure.logging.logger import get_logger
+from src.infrastructure.storage.models import (
+    Base,
+    CommentModel,
+    DrawingModel,
+    PageModel,
+    ProjectModel,
+    CategoryModel,
+    UserModel,
+)
 
 logger = get_logger("DatabaseRepository")
 
+# ---------------------------------------------------------------------------
+# Resolve the canonical database path once at import time.
+# Works on Windows (pathlib handles separators) and Linux/macOS alike.
+# ---------------------------------------------------------------------------
+
+# __file__ is  …/src/infrastructure/storage/repository.py
+# project root is four levels up
+_PROJECT_ROOT: Path = Path(__file__).resolve().parents[3]
+_DEFAULT_DB_PATH: Path = _PROJECT_ROOT / "data" / "ucc_database.db"
+
+
+# ---------------------------------------------------------------------------
+# DatabaseEngine — engine + session factory
+# ---------------------------------------------------------------------------
 
 class DatabaseEngine:
     """
-    Database Manager handling SQLite connections, table creation, and sessions.
+    Manages the SQLite engine and SQLAlchemy session factory.
+
+    Parameters
+    ----------
+    db_path:
+        Absolute or relative path to the SQLite file.
+        Defaults to  <project_root>/data/ucc_database.db.
+    echo:
+        Pass ``True`` to log all generated SQL (useful for debugging).
     """
 
-    def __init__(self, db_path: Optional[Path] = None) -> None:
-        if db_path is None:
-            db_path = Path("drawing_comments.db").resolve()
-        self.db_path = db_path
-        self.engine = create_engine(f"sqlite:///{self.db_path}", echo=False)
-        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+    def __init__(
+        self,
+        db_path: Optional[Path] = None,
+        echo: bool = False,
+    ) -> None:
+        self.db_path: Path = Path(db_path).resolve() if db_path else _DEFAULT_DB_PATH
+
+        # Create the data directory if it does not exist
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        self.engine = create_engine(
+            f"sqlite:///{self.db_path}",
+            echo=echo,
+            connect_args={"check_same_thread": False},
+        )
+
+        # Enable WAL mode and foreign-key enforcement for every new connection
+        @event.listens_for(self.engine, "connect")
+        def _set_sqlite_pragmas(dbapi_conn, _connection_record):
+            cursor = dbapi_conn.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL;")
+            cursor.execute("PRAGMA foreign_keys=ON;")
+            cursor.close()
+
+        self.SessionLocal: sessionmaker[Session] = sessionmaker(
+            bind=self.engine,
+            autocommit=False,
+            autoflush=False,
+            expire_on_commit=False,
+        )
+
         self._init_db()
 
-    def _init_db(self) -> None:
-        """Creates tables and populates initial seed data if DB is empty."""
-        Base.metadata.create_all(bind=self.engine)
-        logger.info(f"Initialized SQLite database at: {self.db_path}")
-        self._seed_initial_data()
+    # ------------------------------------------------------------------
+    # Public helpers
+    # ------------------------------------------------------------------
 
     def get_session(self) -> Session:
-        """Returns a new database session."""
+        """Return a new SQLAlchemy Session.  Caller is responsible for closing it."""
         return self.SessionLocal()
 
-    def _seed_initial_data(self) -> None:
-        """Seeds default project data if table is empty."""
-        session = self.get_session()
-        try:
-            if session.query(ProjectModel).count() == 0:
-                seed_projects = [
-                    ProjectModel(
-                        id="PRJ-001", name="UCC Site-4 Expansion", drawings=48, comments=312,
-                        status="Active", progress=78, last_modified="2026-07-28", engineer="A. Mehta"
-                    ),
-                    ProjectModel(
-                        id="PRJ-002", name="Refinery Unit-7 Upgrade", drawings=32, comments=197,
-                        status="Active", progress=55, last_modified="2026-07-25", engineer="S. Nair"
-                    ),
-                    ProjectModel(
-                        id="PRJ-003", name="Pipeline Corridor North", drawings=61, comments=408,
-                        status="Complete", progress=100, last_modified="2026-07-10", engineer="R. Kapoor"
-                    )
-                ]
-                session.add_all(seed_projects)
-                session.commit()
-                logger.info("Seeded initial database projects.")
-        except Exception as e:
-            session.rollback()
-            logger.error(f"Error seeding database: {e}")
-        finally:
-            session.close()
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
 
+    def _init_db(self) -> None:
+        """Create all tables declared in models.py (idempotent)."""
+        Base.metadata.create_all(bind=self.engine)
+        logger.info(f"SQLite database ready at: {self.db_path}")
+
+
+# ---------------------------------------------------------------------------
+# DrawingRepository
+# ---------------------------------------------------------------------------
 
 class DrawingRepository:
-    """Repository handling Drawing and Page database persistence."""
+    """Persistence operations for Drawing and Page records."""
 
     def __init__(self, db_engine: DatabaseEngine) -> None:
-        self.db_engine = db_engine
+        self._db = db_engine
 
-    def save_drawing_from_dto(self, dto: PDFDocumentDTO, project_id: Optional[str] = "PRJ-001") -> Dict[str, Any]:
+    def save_drawing_from_dto(
+        self,
+        dto: PDFDocumentDTO,
+        project_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
-        Saves a loaded PDFDocumentDTO into SQLite drawings and pages tables.
-        Returns a dictionary representing the saved drawing record.
+        Persist a PDFDocumentDTO as a DrawingModel + PageModel records.
+
+        If a drawing with the same SHA-256 hash already exists, the
+        ``uploaded_at`` timestamp is refreshed and the existing record is
+        returned — no duplicate is inserted.
+
+        Returns
+        -------
+        dict with keys: id, file_name, file_path, total_pages,
+                        is_scanned, file_hash
         """
-        session = self.db_engine.get_session()
-        try:
-            existing = session.query(DrawingModel).filter(DrawingModel.file_hash_sha256 == dto.file_hash_sha256).first()
+        with self._db.get_session() as session:
+            existing = (
+                session.query(DrawingModel)
+                .filter(DrawingModel.file_hash_sha256 == dto.file_hash_sha256)
+                .first()
+            )
             if existing:
                 existing.uploaded_at = datetime.now(timezone.utc)
                 session.commit()
-                logger.info(f"Drawing with hash {dto.file_hash_sha256[:8]} already exists in DB (ID: {existing.id})")
-                return {
-                    "id": existing.id,
-                    "file_name": existing.file_name,
-                    "file_path": existing.file_path,
-                    "total_pages": existing.total_pages,
-                    "is_scanned": existing.is_scanned,
-                    "file_hash": existing.file_hash_sha256
-                }
+                logger.info(
+                    f"Drawing already in DB (hash={dto.file_hash_sha256[:8]}, "
+                    f"id={existing.id}) — timestamp refreshed."
+                )
+                return _drawing_to_dict(existing)
 
             drawing_id = f"DWG-{uuid.uuid4().hex[:8].upper()}"
-            drawing_record = DrawingModel(
+            drawing = DrawingModel(
                 id=drawing_id,
                 project_id=project_id,
                 file_path=str(dto.file_path),
@@ -109,103 +162,369 @@ class DrawingRepository:
                 file_hash_sha256=dto.file_hash_sha256,
                 total_pages=dto.total_pages,
                 is_scanned=dto.is_scanned,
-                uploaded_at=datetime.now(timezone.utc)
+                title=getattr(dto, "title", None),
+                author=getattr(dto, "author", None),
+                uploaded_at=datetime.now(timezone.utc),
             )
-            session.add(drawing_record)
+            session.add(drawing)
 
-            # Add pages
-            for page in dto.pages:
-                page_record = PageModel(
-                    id=f"PG-{uuid.uuid4().hex[:8].upper()}",
-                    drawing_id=drawing_id,
-                    page_number=page.page_number,
-                    width_pt=page.width_pt,
-                    height_pt=page.height_pt,
-                    aspect_ratio=page.aspect_ratio,
-                    has_native_text=page.has_native_text,
-                    text_character_count=page.text_character_count,
-                    orientation_deg=page.orientation_deg
+            for page_dto in dto.pages:
+                session.add(
+                    PageModel(
+                        id=f"PG-{uuid.uuid4().hex[:8].upper()}",
+                        drawing_id=drawing_id,
+                        page_number=page_dto.page_number,
+                        width_pt=page_dto.width_pt,
+                        height_pt=page_dto.height_pt,
+                        aspect_ratio=page_dto.aspect_ratio,
+                        has_native_text=page_dto.has_native_text,
+                        text_character_count=page_dto.text_character_count,
+                        orientation_deg=page_dto.orientation_deg,
+                    )
                 )
-                session.add(page_record)
 
             session.commit()
-            logger.info(f"Saved new drawing '{dto.file_name}' to SQLite database (ID: {drawing_id})")
-            return {
-                "id": drawing_id,
-                "file_name": dto.file_name,
-                "file_path": str(dto.file_path),
-                "total_pages": dto.total_pages,
-                "is_scanned": dto.is_scanned,
-                "file_hash": dto.file_hash_sha256
-            }
-        except Exception as e:
-            session.rollback()
-            logger.error(f"Failed to save drawing to DB: {e}")
-            raise
-        finally:
-            session.close()
+            logger.info(
+                f"Saved drawing '{dto.file_name}' → id={drawing_id}, "
+                f"{dto.total_pages} page(s)."
+            )
+            return _drawing_to_dict(drawing)
 
     def get_recent_drawings(self, limit: int = 10) -> List[Dict[str, Any]]:
-        """Returns list of recent drawing records for UI display."""
-        session = self.db_engine.get_session()
-        try:
-            drawings = session.query(DrawingModel).order_by(DrawingModel.uploaded_at.desc()).limit(limit).all()
-            return [
-                {
-                    "id": d.id,
-                    "file_name": d.file_name,
-                    "file_path": d.file_path,
-                    "total_pages": d.total_pages,
-                    "is_scanned": d.is_scanned,
-                    "uploaded_at": d.uploaded_at.strftime("%Y-%m-%d %H:%M:%S") if d.uploaded_at else ""
-                }
-                for d in drawings
-            ]
-        finally:
-            session.close()
+        """Return the most recently uploaded drawings."""
+        with self._db.get_session() as session:
+            rows = (
+                session.query(DrawingModel)
+                .order_by(DrawingModel.uploaded_at.desc())
+                .limit(limit)
+                .all()
+            )
+            return [_drawing_to_dict(d) for d in rows]
 
+    def get_drawing_by_id(self, drawing_id: str) -> Optional[Dict[str, Any]]:
+        """Return a single drawing record by primary key, or None."""
+        with self._db.get_session() as session:
+            row = session.get(DrawingModel, drawing_id)
+            return _drawing_to_dict(row) if row else None
+
+
+# ---------------------------------------------------------------------------
+# ProjectRepository
+# ---------------------------------------------------------------------------
 
 class ProjectRepository:
-    """Repository handling Project queries and KPI statistics."""
+    """Persistence and query operations for Project records and KPI aggregates."""
 
     def __init__(self, db_engine: DatabaseEngine) -> None:
-        self.db_engine = db_engine
+        self._db = db_engine
 
     def get_all_projects(self) -> List[Dict[str, Any]]:
-        session = self.db_engine.get_session()
-        try:
-            projects = session.query(ProjectModel).all()
-            return [
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "drawings": p.drawings,
-                    "comments": p.comments,
-                    "status": p.status,
-                    "progress": p.progress,
-                    "last_modified": p.last_modified,
-                    "engineer": p.engineer
-                }
-                for p in projects
-            ]
-        finally:
-            session.close()
+        """Return all projects ordered by creation date (newest first)."""
+        with self._db.get_session() as session:
+            rows = (
+                session.query(ProjectModel)
+                .order_by(ProjectModel.created_at.desc())
+                .all()
+            )
+            return [_project_to_dict(p) for p in rows]
+
+    def get_project_by_id(self, project_id: str) -> Optional[Dict[str, Any]]:
+        """Return a single project, or None if not found."""
+        with self._db.get_session() as session:
+            row = session.get(ProjectModel, project_id)
+            return _project_to_dict(row) if row else None
+
+    def create_project(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        lead_engineer: Optional[str] = None,
+        status: str = "Active",
+    ) -> Dict[str, Any]:
+        """Insert a new project and return its record."""
+        with self._db.get_session() as session:
+            project = ProjectModel(
+                id=f"PRJ-{uuid.uuid4().hex[:8].upper()}",
+                name=name,
+                description=description,
+                lead_engineer=lead_engineer,
+                status=status,
+                progress=0,
+            )
+            session.add(project)
+            session.commit()
+            logger.info(f"Created project '{name}' → id={project.id}")
+            return _project_to_dict(project)
 
     def get_kpis(self) -> Dict[str, Any]:
-        session = self.db_engine.get_session()
-        try:
-            total_projects = session.query(ProjectModel).count()
+        """
+        Return live KPI counts from the database.
+        No hardcoded fallback values — all figures come from real rows.
+        """
+        with self._db.get_session() as session:
+            total_projects    = session.query(ProjectModel).count()
             drawings_processed = session.query(DrawingModel).count()
-            comments_detected = session.query(CommentModel).count()
+            comments_detected  = session.query(CommentModel).count()
+
+            # Accuracy: ratio of human-verified approved comments to all comments
+            approved = (
+                session.query(CommentModel)
+                .filter(
+                    CommentModel.status == "Approved",
+                    CommentModel.is_verified_by_human.is_(True),
+                )
+                .count()
+            )
+            accuracy = (
+                round((approved / comments_detected) * 100, 1)
+                if comments_detected > 0
+                else None
+            )
+
             return {
-                "total_projects": total_projects or 7,
-                "drawings_processed": drawings_processed or 302,
-                "comments_detected": comments_detected or 2036,
-                "accuracy": 91.4,
-                "trend_projects": "+2",
-                "trend_drawings": "+18",
-                "trend_comments": "+143",
-                "trend_accuracy": "+0.8"
+                "total_projects":    total_projects,
+                "drawings_processed": drawings_processed,
+                "comments_detected":  comments_detected,
+                "accuracy":          accuracy,
             }
-        finally:
-            session.close()
+
+
+# ---------------------------------------------------------------------------
+# CategoryRepository
+# ---------------------------------------------------------------------------
+
+class CategoryRepository:
+    """CRUD for comment classification categories."""
+
+    def __init__(self, db_engine: DatabaseEngine) -> None:
+        self._db = db_engine
+
+    def get_all_categories(self) -> List[Dict[str, Any]]:
+        with self._db.get_session() as session:
+            rows = session.query(CategoryModel).order_by(CategoryModel.name).all()
+            return [
+                {
+                    "id":          c.id,
+                    "name":        c.name,
+                    "description": c.description,
+                    "color_hex":   c.color_hex,
+                }
+                for c in rows
+            ]
+
+    def get_or_create_category(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        color_hex: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Return an existing category by name, or create it."""
+        with self._db.get_session() as session:
+            row = (
+                session.query(CategoryModel)
+                .filter(CategoryModel.name == name)
+                .first()
+            )
+            if row:
+                return {"id": row.id, "name": row.name}
+
+            cat = CategoryModel(
+                id=f"CAT-{uuid.uuid4().hex[:8].upper()}",
+                name=name,
+                description=description,
+                color_hex=color_hex,
+            )
+            session.add(cat)
+            session.commit()
+            logger.info(f"Created category '{name}' → id={cat.id}")
+            return {"id": cat.id, "name": cat.name}
+
+
+# ---------------------------------------------------------------------------
+# UserRepository
+# ---------------------------------------------------------------------------
+
+class UserRepository:
+    """CRUD for user / reviewer records."""
+
+    def __init__(self, db_engine: DatabaseEngine) -> None:
+        self._db = db_engine
+
+    def get_all_users(self) -> List[Dict[str, Any]]:
+        with self._db.get_session() as session:
+            rows = (
+                session.query(UserModel)
+                .filter(UserModel.is_active.is_(True))
+                .order_by(UserModel.display_name)
+                .all()
+            )
+            return [_user_to_dict(u) for u in rows]
+
+    def get_or_create_user(
+        self,
+        username: str,
+        display_name: Optional[str] = None,
+        email: Optional[str] = None,
+        role: str = "Reviewer",
+    ) -> Dict[str, Any]:
+        """Return an existing user by username, or create them."""
+        with self._db.get_session() as session:
+            row = (
+                session.query(UserModel)
+                .filter(UserModel.username == username)
+                .first()
+            )
+            if row:
+                return _user_to_dict(row)
+
+            user = UserModel(
+                id=f"USR-{uuid.uuid4().hex[:8].upper()}",
+                username=username,
+                display_name=display_name or username,
+                email=email,
+                role=role,
+            )
+            session.add(user)
+            session.commit()
+            logger.info(f"Created user '{username}' → id={user.id}")
+            return _user_to_dict(user)
+
+
+# ---------------------------------------------------------------------------
+# CommentRepository
+# ---------------------------------------------------------------------------
+
+class CommentRepository:
+    """Persistence and query operations for Comment records."""
+
+    def __init__(self, db_engine: DatabaseEngine) -> None:
+        self._db = db_engine
+
+    def save_comment(
+        self,
+        drawing_id: str,
+        page_number: int,
+        raw_text: str,
+        bbox: tuple[float, float, float, float],
+        confidence: float = 0.0,
+        category_id: Optional[str] = None,
+        category_name: Optional[str] = "Uncategorized",
+        page_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        cleaned_text: str = "",
+        status: str = "Pending",
+    ) -> Dict[str, Any]:
+        """Persist a single extracted comment."""
+        with self._db.get_session() as session:
+            comment = CommentModel(
+                id=f"CMT-{uuid.uuid4().hex[:8].upper()}",
+                drawing_id=drawing_id,
+                page_id=page_id,
+                category_id=category_id,
+                user_id=user_id,
+                page_number=page_number,
+                raw_text=raw_text,
+                cleaned_text=cleaned_text,
+                category_name=category_name,
+                confidence=confidence,
+                status=status,
+                bbox_x0=bbox[0],
+                bbox_y0=bbox[1],
+                bbox_x1=bbox[2],
+                bbox_y1=bbox[3],
+            )
+            session.add(comment)
+            session.commit()
+            return {"id": comment.id, "status": comment.status}
+
+    def get_comments_for_drawing(self, drawing_id: str) -> List[Dict[str, Any]]:
+        with self._db.get_session() as session:
+            rows = (
+                session.query(CommentModel)
+                .filter(CommentModel.drawing_id == drawing_id)
+                .order_by(CommentModel.page_number, CommentModel.bbox_y0)
+                .all()
+            )
+            return [_comment_to_dict(c) for c in rows]
+
+    def get_comments_for_page(self, page_id: str) -> List[Dict[str, Any]]:
+        with self._db.get_session() as session:
+            rows = (
+                session.query(CommentModel)
+                .filter(CommentModel.page_id == page_id)
+                .order_by(CommentModel.bbox_y0)
+                .all()
+            )
+            return [_comment_to_dict(c) for c in rows]
+
+
+# ---------------------------------------------------------------------------
+# Private serialisation helpers
+# ---------------------------------------------------------------------------
+
+def _drawing_to_dict(d: DrawingModel) -> Dict[str, Any]:
+    return {
+        "id":           d.id,
+        "file_name":    d.file_name,
+        "file_path":    d.file_path,
+        "total_pages":  d.total_pages,
+        "is_scanned":   d.is_scanned,
+        "file_hash":    d.file_hash_sha256,
+        "project_id":   d.project_id,
+        "uploaded_at":  (
+            d.uploaded_at.strftime("%Y-%m-%d %H:%M:%S")
+            if d.uploaded_at else ""
+        ),
+    }
+
+
+def _project_to_dict(p: ProjectModel) -> Dict[str, Any]:
+    return {
+        "id":            p.id,
+        "name":          p.name,
+        "description":   p.description,
+        "status":        p.status,
+        "progress":      p.progress,
+        "lead_engineer": p.lead_engineer,
+        "created_at":    (
+            p.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            if p.created_at else ""
+        ),
+        "updated_at":    (
+            p.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+            if p.updated_at else ""
+        ),
+    }
+
+
+def _user_to_dict(u: UserModel) -> Dict[str, Any]:
+    return {
+        "id":           u.id,
+        "username":     u.username,
+        "display_name": u.display_name,
+        "email":        u.email,
+        "role":         u.role,
+        "is_active":    u.is_active,
+    }
+
+
+def _comment_to_dict(c: CommentModel) -> Dict[str, Any]:
+    return {
+        "id":                   c.id,
+        "drawing_id":           c.drawing_id,
+        "page_id":              c.page_id,
+        "page_number":          c.page_number,
+        "raw_text":             c.raw_text,
+        "cleaned_text":         c.cleaned_text,
+        "category_id":          c.category_id,
+        "category_name":        c.category_name,
+        "user_id":              c.user_id,
+        "confidence":           c.confidence,
+        "status":               c.status,
+        "bbox":                 (c.bbox_x0, c.bbox_y0, c.bbox_x1, c.bbox_y1),
+        "is_verified_by_human": c.is_verified_by_human,
+        "created_at":           (
+            c.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            if c.created_at else ""
+        ),
+    }

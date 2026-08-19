@@ -47,35 +47,35 @@ class AuthService:
 
     def _seed_demo_users(self) -> None:
         """Seeds default demo accounts into SQLite database if empty."""
-        session = self.db_engine.get_session()
-        try:
-            if session.query(UserModel).count() == 0:
-                demo_accounts = [
-                    ("admin", "admin@ucc.com", "Password123!", "Lead Engineer"),
-                    ("soham", "soham@ucc.com", "Password123!", "Backend Lead"),
-                    ("reviewer", "reviewer@ucc.com", "Password123!", "Reviewer"),
-                ]
+        with self.db_engine.get_session() as session:
+            try:
+                if session.query(UserModel).count() == 0:
+                    demo_accounts = [
+                        ("admin", "Admin User", "admin@ucc.com", "Password123!", "Lead Engineer"),
+                        ("soham", "Soham Patil", "soham@ucc.com", "Password123!", "Backend Lead"),
+                        ("reviewer", "Review Engineer", "reviewer@ucc.com", "Password123!", "Reviewer"),
+                    ]
 
-                for uname, email, plain_pwd, role in demo_accounts:
-                    pwd_hash, salt_hex = self._hash_password(plain_pwd)
-                    user_record = UserModel(
-                        id=f"USR-{uuid.uuid4().hex[:8].upper()}",
-                        username=uname,
-                        email=email,
-                        password_hash=pwd_hash,
-                        salt=salt_hex,
-                        role=role,
-                        created_at=datetime.now(timezone.utc)
-                    )
-                    session.add(user_record)
+                    for uname, display, email, plain_pwd, role in demo_accounts:
+                        pwd_hash, salt_hex = self._hash_password(plain_pwd)
+                        user_record = UserModel(
+                            id=f"USR-{uuid.uuid4().hex[:8].upper()}",
+                            username=uname,
+                            display_name=display,
+                            email=email,
+                            password_hash=pwd_hash,
+                            salt=salt_hex,
+                            role=role,
+                            is_active=True,
+                            created_at=datetime.now(timezone.utc),
+                        )
+                        session.add(user_record)
 
-                session.commit()
-                logger.info("Seeded demo user accounts into database (admin, soham, reviewer).")
-        except Exception as e:
-            session.rollback()
-            logger.error(f"Failed to seed demo users: {e}")
-        finally:
-            session.close()
+                    session.commit()
+                    logger.info("Seeded demo user accounts into database (admin, soham, reviewer).")
+            except Exception as e:
+                session.rollback()
+                logger.error(f"Failed to seed demo users: {e}")
 
     def authenticate_user(self, username_or_email: str, password: str) -> SessionTokenDTO:
         """
@@ -87,8 +87,7 @@ class AuthService:
         Raises:
             InvalidCredentialsError: If username or password does not match.
         """
-        session = self.db_engine.get_session()
-        try:
+        with self.db_engine.get_session() as session:
             uname_clean = username_or_email.strip().lower()
             user_record = session.query(UserModel).filter(
                 (func.lower(UserModel.username) == uname_clean) |
@@ -97,6 +96,10 @@ class AuthService:
 
             if not user_record:
                 logger.warning(f"Failed login attempt for unknown user: {username_or_email}")
+                raise InvalidCredentialsError("Invalid username or password.")
+
+            if not user_record.password_hash or not user_record.salt:
+                logger.warning(f"User '{username_or_email}' has no password set.")
                 raise InvalidCredentialsError("Invalid username or password.")
 
             if not self._verify_password(password, user_record.password_hash, user_record.salt):
@@ -113,7 +116,7 @@ class AuthService:
                 email=user_record.email,
                 role=user_record.role,
                 is_authenticated=True,
-                last_login=user_record.last_login
+                last_login=user_record.last_login,
             )
 
             # Generate session token
@@ -121,14 +124,12 @@ class AuthService:
             session_dto = SessionTokenDTO(
                 token=token_str,
                 user=user_dto,
-                created_at=datetime.now(timezone.utc)
+                created_at=datetime.now(timezone.utc),
             )
             self._active_sessions[token_str] = session_dto
 
             logger.info(f"User '{user_record.username}' ({user_record.role}) signed in successfully.")
             return session_dto
-        finally:
-            session.close()
 
     def sign_out(self, token: str) -> bool:
         """Invalidates an active user session token."""
