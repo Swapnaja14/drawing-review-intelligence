@@ -1,0 +1,3 @@
+# This file keeps the data/ directory in version control.
+# The SQLite database file (ucc_database.db) is listed in .gitignore
+# and must never be committed.
