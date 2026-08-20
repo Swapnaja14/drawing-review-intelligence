@@ -4,7 +4,7 @@ upload_screen.py — PDF upload screen.
 Provides:
     UploadPage(QWidget)
         Drag-and-drop zone (DropZone), file detail card, progress bar,
-        and start-processing button connected to AppController backend.
+        and start-processing button connected to AppController & WorkflowEngine backend.
 """
 from __future__ import annotations
 import os
@@ -22,8 +22,15 @@ from app.components.dialogs import open_pdf_file
 class UploadPage(QWidget):
     """
     Upload screen — drag-and-drop a PDF drawing or browse for one.
-    Integrates with AppController for backend PDF loading & processing.
+    Integrates with AppController & ProcessingWorkflowEngine backend.
+
+    Signals
+    -------
+    open_viewer_requested : Signal()
+        Emitted when user completes processing and clicks to view the drawing.
     """
+
+    open_viewer_requested = Signal()
 
     def __init__(self, controller=None, parent=None):
         super().__init__(parent)
@@ -107,7 +114,14 @@ class UploadPage(QWidget):
 
         root.addWidget(self._file_card)
 
-        # ── Progress bar ──────────────────────────────────────────
+        # ── Progress bar & Status message ─────────────────────────
+        self._status_lbl = QLabel("")
+        self._status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._status_lbl.setFont(QFont("Segoe UI", 12))
+        self._status_lbl.setStyleSheet("color: #3E9BFF;")
+        self._status_lbl.hide()
+        root.addWidget(self._status_lbl)
+
         self._prog = QProgressBar()
         self._prog.setRange(0, 100)
         self._prog.setValue(0)
@@ -116,26 +130,30 @@ class UploadPage(QWidget):
         root.addWidget(self._prog)
 
         # ── Start processing button ───────────────────────────────
-        self._start_btn = QPushButton("  Start Processing")
+        self._start_btn = QPushButton("  Start Processing Workflow")
         self._start_btn.setObjectName("PrimaryBtn")
         self._start_btn.setFixedHeight(44)
-        self._start_btn.setFixedWidth(240)
+        self._start_btn.setFixedWidth(260)
         self._start_btn.setEnabled(False)
         self._start_btn.clicked.connect(self._start)
         root.addWidget(self._start_btn, 0, Qt.AlignmentFlag.AlignCenter)
 
         root.addStretch()
 
-        # Connect controller signals if available
         if self._controller:
-            self._controller.document_loaded_signal.connect(self._on_doc_loaded)
-            self._controller.processing_error_signal.connect(self._on_doc_error)
+            self._connect_controller_signals()
 
     def set_controller(self, controller) -> None:
         self._controller = controller
         if self._controller:
-            self._controller.document_loaded_signal.connect(self._on_doc_loaded)
-            self._controller.processing_error_signal.connect(self._on_doc_error)
+            self._connect_controller_signals()
+
+    def _connect_controller_signals(self) -> None:
+        if not self._controller:
+            return
+        self._controller.workflow_step_signal.connect(self._on_workflow_step)
+        self._controller.workflow_completed_signal.connect(self._on_workflow_completed)
+        self._controller.processing_error_signal.connect(self._on_doc_error)
 
     # ── Slots ─────────────────────────────────────────────────────
 
@@ -153,12 +171,33 @@ class UploadPage(QWidget):
     def _on_file(self, path: str) -> None:
         self._filepath = path
         name = os.path.basename(path)
-        size_mb = (
-            round(os.path.getsize(path) / (1024 * 1024), 2)
-            if os.path.exists(path) else "?"
-        )
+
+        # Re-reset button to default state
+        self._start_btn.setText("  Start Processing Workflow")
+        try:
+            self._start_btn.clicked.disconnect()
+        except Exception:
+            pass
+        self._start_btn.clicked.connect(self._start)
+
+        if self._controller:
+            val_res = self._controller.validate_file(path)
+            if not val_res.is_valid:
+                self._fname.setText(name)
+                self._fmeta.setText(f"❌ {val_res.error_message}")
+                self._file_card.show()
+                self._start_btn.setEnabled(False)
+                return
+            size_str = f"{val_res.file_size_mb} MB"
+        else:
+            size_mb = (
+                round(os.path.getsize(path) / (1024 * 1024), 2)
+                if os.path.exists(path) else "?"
+            )
+            size_str = f"{size_mb} MB"
+
         self._fname.setText(name)
-        self._fmeta.setText(f"{size_mb} MB  · Ready for Backend Validation")
+        self._fmeta.setText(f"{size_str}  ·  Validated for Processing")
         self._file_card.show()
         self._start_btn.setEnabled(True)
 
@@ -166,7 +205,14 @@ class UploadPage(QWidget):
         self._filepath = None
         self._file_card.hide()
         self._prog.hide()
+        self._status_lbl.hide()
         self._prog.setValue(0)
+        self._start_btn.setText("  Start Processing Workflow")
+        try:
+            self._start_btn.clicked.disconnect()
+        except Exception:
+            pass
+        self._start_btn.clicked.connect(self._start)
         self._start_btn.setEnabled(False)
 
     def _start(self) -> None:
@@ -174,21 +220,36 @@ class UploadPage(QWidget):
             return
 
         self._prog.show()
-        self._prog.setValue(30)
-        self._start_btn.setText("Processing PDF...")
+        self._status_lbl.show()
+        self._prog.setValue(10)
+        self._start_btn.setText("Processing Pipeline Active...")
         self._start_btn.setEnabled(False)
 
         if self._controller:
-            # Trigger real backend background thread PDF processing
-            self._controller.load_pdf_file(self._filepath)
+            self._controller.start_processing_workflow(self._filepath)
         else:
             self._prog.setValue(100)
 
-    def _on_doc_loaded(self, doc_dto) -> None:
+    def _on_workflow_step(self, step_snapshot) -> None:
+        self._prog.setValue(step_snapshot.progress_percentage)
+        self._status_lbl.setText(f"{step_snapshot.step_name}: {step_snapshot.message}")
+
+    def _on_workflow_completed(self, result_dto) -> None:
         self._prog.setValue(100)
-        self._start_btn.setText("  ✓  Processing Complete")
+        self._status_lbl.setText(f"✓ Workflow Complete in {result_dto.processing_duration_seconds}s!")
+        self._start_btn.setText("  View PDF Drawing ➔  ")
+        self._start_btn.setEnabled(True)
+        try:
+            self._start_btn.clicked.disconnect()
+        except Exception:
+            pass
+        self._start_btn.clicked.connect(self._open_viewer)
+
+    def _open_viewer(self) -> None:
+        self.open_viewer_requested.emit()
 
     def _on_doc_error(self, error_msg: str) -> None:
         self._prog.hide()
-        self._start_btn.setText(f"Error: {error_msg[:20]}...")
+        self._status_lbl.setText(f"❌ {error_msg}")
+        self._start_btn.setText("Processing Failed")
         self._start_btn.setEnabled(True)

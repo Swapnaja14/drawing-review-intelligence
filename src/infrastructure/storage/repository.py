@@ -38,7 +38,7 @@ logger = get_logger("DatabaseRepository")
 
 # __file__ is  …/src/infrastructure/storage/repository.py
 # project root is four levels up
-_PROJECT_ROOT: Path = Path(__file__).resolve().parents[4]
+_PROJECT_ROOT: Path = Path(__file__).resolve().parents[3]
 _DEFAULT_DB_PATH: Path = _PROJECT_ROOT / "data" / "ucc_database.db"
 
 
@@ -162,8 +162,8 @@ class DrawingRepository:
                 file_hash_sha256=dto.file_hash_sha256,
                 total_pages=dto.total_pages,
                 is_scanned=dto.is_scanned,
-                title=dto.title,
-                author=dto.author,
+                title=getattr(dto, "title", None),
+                author=getattr(dto, "author", None),
                 uploaded_at=datetime.now(timezone.utc),
             )
             session.add(drawing)
@@ -267,7 +267,6 @@ class ProjectRepository:
             comments_detected  = session.query(CommentModel).count()
 
             # Accuracy: ratio of human-verified approved comments to all comments
-            # Returns None (not 0) when there is no data yet.
             approved = (
                 session.query(CommentModel)
                 .filter(
@@ -287,8 +286,6 @@ class ProjectRepository:
                 "drawings_processed": drawings_processed,
                 "comments_detected":  comments_detected,
                 "accuracy":          accuracy,
-                # Trend fields are intentionally absent until historical
-                # snapshots are implemented; callers should use .get()
             }
 
 
