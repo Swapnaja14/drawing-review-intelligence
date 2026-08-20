@@ -135,6 +135,14 @@ dataset/raw_drawings/
 raw_drawings/
 dataset/raw_drawings/*
 
+# OCR extracted text output (generated files)
+dataset/extracted_text/
+extracted_text/
+
+# Temporary test files
+test_*.py
+!scripts/test_*.py
+
 # Documentation builds
 docs/_build/
 site/
