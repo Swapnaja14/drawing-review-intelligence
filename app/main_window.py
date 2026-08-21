@@ -1,6 +1,21 @@
 """
 MainWindow — application shell: sidebar + topbar + stacked pages.
 Integrates backend AppController with PySide6 GUI screens.
+
+ARCHITECTURE NOTE:
+MainWindow is responsible for:
+  - Instantiating AppController (the single controller instance)
+  - Passing controller=self.controller to every screen that needs DB access
+  - Wiring top-level signals between the controller and screens
+
+All screens that display comment data receive the controller through their
+constructor. They must NOT instantiate repositories or services themselves.
+
+INTEGRATION NOTE:
+When a PDF is loaded (_on_document_loaded), AppController.current_drawing_id
+is set to the database DrawingModel.id for the newly loaded drawing. Screens
+with a reload_comments() method are called automatically so their data
+reflects the newly loaded drawing.
 """
 from __future__ import annotations
 from PySide6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
@@ -86,10 +101,10 @@ class MainWindow(QMainWindow):
             self.dashboard_page,
             self.upload_page,
             self.pdf_viewer_page,
-            CommentHighlightPage(),
-            OcrResultsPage(),
-            ClassificationPage(),
-            HumanReviewPage(),
+            CommentHighlightPage(controller=self.controller),
+            OcrResultsPage(controller=self.controller),
+            ClassificationPage(controller=self.controller),
+            HumanReviewPage(controller=self.controller),
             AnalyticsPage(),
             ExportPage(),
             SettingsPage(theme_manager=self._theme),
@@ -118,9 +133,19 @@ class MainWindow(QMainWindow):
             self._theme.toggle()
 
     def _on_document_loaded(self, doc_dto):
-        """Callback when background PDF worker completes loading document."""
+        """Callback when background PDF worker completes loading document.
+
+        INTEGRATION NOTE:
+        At this point AppController.current_drawing_id is already set to the
+        DrawingModel.id for the loaded PDF. Comment screens that implement
+        reload_comments() can be called here to refresh their data.
+        """
         self._status_bar.set_message(f"Loaded: {doc_dto.file_name} ({doc_dto.total_pages} pages)")
         # Update PDF Viewer page with loaded document
         self.pdf_viewer_page.set_document(doc_dto)
+        # Refresh comment screens with DB data for the newly loaded drawing
+        for page in self._pages:
+            if hasattr(page, "reload_comments"):
+                page.reload_comments()
         # Navigate to PDF Viewer screen (Index 2)
         self._open_pdf_viewer()

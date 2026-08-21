@@ -5,13 +5,32 @@ Provides:
     ClassificationPage(QWidget)
         Category summary cards, search / filter toolbar, sortable table
         with category + confidence delegates, and a slide-in inspector drawer.
+
+ARCHITECTURE NOTE:
+This screen loads comments and category counts through AppController.
+It must NOT import or instantiate CommentRepository or CategoryRepository
+directly. All data must flow through AppController → Repository → SQLAlchemy.
+
+MOCK DATA FALLBACK:
+When no controller is provided, or the database has no comments for the
+loaded drawing, the screen falls back to mock_data.CATEGORY_COUNTS and
+mock_data.COMMENTS. This fallback is intentional during Week 3 development.
+
+INTEGRATION WARNING — inspector drawer row indexing:
+The drawer previously used md.COMMENTS[row] as a direct list index, which
+is fragile when a QSortFilterProxyModel filter is active. The fixed
+implementation stores the comment object against the model row using a
+separate instance list and looks up by matching to the source row index.
+See _open_drawer() and _build_model() below.
 """
 from __future__ import annotations
+from typing import Any, Dict, List, Optional, Union
+
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame,
                                 QLabel, QTableView, QPushButton, QComboBox,
-                                QLineEdit, QHeaderView, QAbstractItemView,
+                                QHeaderView, QAbstractItemView,
                                 QSizePolicy)
-from PySide6.QtGui import QFont, QStandardItemModel, QStandardItem, QColor
+from PySide6.QtGui import QFont, QStandardItemModel, QStandardItem
 from PySide6.QtCore import Qt, QSortFilterProxyModel, QModelIndex
 
 from app import mock_data as md
@@ -32,29 +51,63 @@ _CATEGORY_ICONS = {
 }
 
 
+def _get(c: Union[Dict[str, Any], Any], field: str, default: Any = "") -> Any:
+    """Access a field from either a normalised display dict or a mock dataclass."""
+    if isinstance(c, dict):
+        return c.get(field, default)
+    return getattr(c, field, default)
+
+
 class ClassificationPage(QWidget):
     """
     Classification — category summary cards, comment table with badges,
     and a slide-in inspector drawer.
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, controller=None, parent=None):
         super().__init__(parent)
+        self._controller = controller
+
+        # Load category counts: prefer DB, fall back to mock
+        if self._controller and self._controller.current_drawing_id:
+            db_counts = self._controller.get_category_counts(
+                self._controller.current_drawing_id
+            )
+            category_counts = db_counts if db_counts else md.CATEGORY_COUNTS
+        elif self._controller:
+            # Controller present but no drawing loaded — show all-drawing counts
+            db_counts = self._controller.get_category_counts()
+            category_counts = db_counts if db_counts else md.CATEGORY_COUNTS
+        else:
+            category_counts = md.CATEGORY_COUNTS
+
+        # Load comments: prefer DB, fall back to mock
+        # INTEGRATION NOTE:
+        # self._comments_data is the single source of truth for the table and
+        # the drawer. It is indexed by position (source model row) for the drawer.
+        # Do NOT use md.COMMENTS[row] — that breaks when filters are active.
+        if self._controller and self._controller.current_drawing_id:
+            db_comments = self._controller.get_comments_for_drawing(
+                self._controller.current_drawing_id
+            )
+            self._comments_data: List[Any] = db_comments if db_comments else list(md.COMMENTS)
+        else:
+            self._comments_data = list(md.COMMENTS)
 
         outer = QHBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
         # ── Main content ──────────────────────────────────────────
-        main   = QWidget()
-        root   = QVBoxLayout(main)
+        main = QWidget()
+        root = QVBoxLayout(main)
         root.setContentsMargins(24, 24, 24, 24)
         root.setSpacing(16)
 
         # Category summary cards
         cat_row = QHBoxLayout()
         cat_row.setSpacing(12)
-        for cat, count in md.CATEGORY_COUNTS.items():
+        for cat, count in category_counts.items():
             icon_text, color = _CATEGORY_ICONS.get(cat, ("●", "#A6A9B1"))
             card = CategorySummaryCard(icon_text, count, cat, color)
             cat_row.addWidget(card, 1)
@@ -72,7 +125,7 @@ class ClassificationPage(QWidget):
         tb.addStretch()
 
         cat_filt = QComboBox()
-        cat_filt.addItems(["All Categories"] + list(md.CATEGORY_COUNTS.keys()))
+        cat_filt.addItems(["All Categories"] + list(category_counts.keys()))
         cat_filt.setFixedHeight(36)
         tb.addWidget(cat_filt)
 
@@ -132,13 +185,19 @@ class ClassificationPage(QWidget):
         model.setHorizontalHeaderLabels(
             ["Comment", "Category", "Confidence", "Status"]
         )
-        for c in md.COMMENTS:
-            text_item = QStandardItem(c.ocr_text[:80])
-            text_item.setData(c.id, Qt.ItemDataRole.UserRole)
-            cat_item  = QStandardItem(c.category)
+        for c in self._comments_data:
+            ocr_text   = _get(c, "ocr_text", "")
+            cid        = _get(c, "id", "")
+            category   = _get(c, "category", "Other")
+            confidence = _get(c, "confidence", 0.0)
+            status     = _get(c, "status", "Pending")
+
+            text_item = QStandardItem(str(ocr_text)[:80])
+            text_item.setData(cid, Qt.ItemDataRole.UserRole)
+            cat_item  = QStandardItem(str(category))
             conf_item = QStandardItem()
-            conf_item.setData(c.confidence, Qt.ItemDataRole.UserRole)
-            st_item   = QStandardItem(c.status)
+            conf_item.setData(float(confidence), Qt.ItemDataRole.UserRole)
+            st_item   = QStandardItem(str(status))
             for item in [text_item, cat_item, conf_item, st_item]:
                 item.setTextAlignment(
                     Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
@@ -147,8 +206,29 @@ class ClassificationPage(QWidget):
         return model
 
     def _open_drawer(self, index: QModelIndex) -> None:
-        row = self._proxy.mapToSource(index).row()
-        c   = md.COMMENTS[row]
+        """
+        Open the inspector drawer for the selected comment.
+
+        INTEGRATION NOTE:
+        The source row index is used to look up the comment from
+        self._comments_data — NOT from md.COMMENTS directly. This is correct
+        because self._comments_data is built in the same order as the model
+        rows, and it works for both DB dicts and mock objects.
+
+        This replaces the previous pattern of md.COMMENTS[row] which was
+        fragile when a QSortFilterProxyModel filter was active.
+        """
+        source_row = self._proxy.mapToSource(index).row()
+        if source_row < 0 or source_row >= len(self._comments_data):
+            return
+        c = self._comments_data[source_row]
+
+        cid        = _get(c, "id", "")
+        drawing_no = _get(c, "drawing_no", _get(c, "drawing_id", ""))
+        project_id = _get(c, "drawing_id", "")
+        ocr_text   = _get(c, "ocr_text", "")
+        category   = _get(c, "category", "Other")
+        confidence = _get(c, "confidence", 0.0)
 
         lay = self._drawer.content_layout
         while lay.count():
@@ -156,7 +236,7 @@ class ClassificationPage(QWidget):
             if child.widget():
                 child.widget().deleteLater()
 
-        self._drawer.set_title(f"Inspector — {c.id}")
+        self._drawer.set_title(f"Inspector — {cid}")
 
         def _row(key: str, val: str) -> None:
             k = QLabel(key)
@@ -167,10 +247,10 @@ class ClassificationPage(QWidget):
             v.setWordWrap(True)
             lay.addWidget(v)
 
-        _row("Drawing", c.drawing_no)
-        _row("Project", c.project_id)
+        _row("Drawing", drawing_no)
+        _row("Project", project_id)
 
-        full_text = QLabel(c.ocr_text)
+        full_text = QLabel(str(ocr_text))
         full_text.setWordWrap(True)
         full_text.setStyleSheet(
             "color:#F2F3F5; font-size:13px; padding:8px;"
@@ -181,15 +261,15 @@ class ClassificationPage(QWidget):
         cat_lbl = QLabel("Category")
         cat_lbl.setObjectName("FormLabel")
         lay.addWidget(cat_lbl)
-        lay.addWidget(CategoryBadge(c.category))
+        lay.addWidget(CategoryBadge(str(category)))
 
         cat_override = QComboBox()
         cat_override.addItems(md.CATEGORIES)
-        cat_override.setCurrentText(c.category)
+        cat_override.setCurrentText(str(category))
         cat_override.setFixedHeight(36)
         lay.addWidget(cat_override)
 
-        conf_lbl = QLabel(f"Confidence: {int(c.confidence * 100)}%")
+        conf_lbl = QLabel(f"Confidence: {int(float(confidence) * 100)}%")
         conf_lbl.setObjectName("SubCaption")
         lay.addWidget(conf_lbl)
 

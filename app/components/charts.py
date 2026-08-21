@@ -29,6 +29,32 @@ except ImportError:
 
 from app import mock_data as md
 
+# ARCHITECTURE WARNING:
+# The chart builder functions in this module (build_pareto_chart,
+# build_monthly_chart, build_category_pie) currently fetch data directly
+# from mock_data (md.PARETO_DATA, md.MONTHLY_COUNTS, md.CATEGORY_COUNTS).
+#
+# This couples presentation components to application mock data, which
+# conflicts with the database integration responsibility.
+#
+# When analytics_screen.py is connected to database aggregation queries
+# (Phase 8), BOTH this file AND analytics_screen.py must be updated.
+# Modifying only analytics_screen.py will have no visual effect because
+# chart builders still read from mock_data internally.
+#
+# RECOMMENDED DIRECTION:
+# Refactor chart builder functions to accept data as parameters, e.g.:
+#   build_pareto_chart(categories, counts, cumulative)
+#   build_monthly_chart(months, totals, approved)
+#   build_category_pie(category_counts: dict)
+# analytics_screen.py should fetch data from AppController and pass it in.
+#
+# The mock_data fallback can remain as default parameter values until
+# Phase 8 analytics integration is complete.
+#
+# See docs/AGENT_INTEGRATION_GUIDELINES.md WARNING-002 for full context.
+# This warning is for all development agents.
+
 __all__ = [
     "build_pareto_chart",
     "build_monthly_chart",

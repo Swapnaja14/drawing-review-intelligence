@@ -414,7 +414,26 @@ class CommentRepository:
         cleaned_text: str = "",
         status: str = "Pending",
     ) -> Dict[str, Any]:
-        """Persist a single extracted comment."""
+        """Persist a single extracted comment.
+
+        Parameters
+        ----------
+        bbox:
+            MUST be (x0, y0, x1, y1) in ABSOLUTE PDF POINT COORDINATES.
+            1 point = 1/72 inch. Origin is top-left of page.
+            x0=left, y0=top, x1=right, y1=bottom.
+
+            Do NOT pass normalised (0-1) coordinates.
+            Do NOT pass (x, y, width, height) format.
+
+            PyMuPDF's extract_page_text_blocks() already returns (x0,y0,x1,y1)
+            absolute points and is the correct source for this parameter.
+
+            See docs/AGENT_INTEGRATION_GUIDELINES.md WARNING-009 for context.
+        status:
+            Must be one of: "Pending", "Approved", "Rejected", "Flagged".
+            Default is "Pending" for all newly extracted comments.
+        """
         with self._db.get_session() as session:
             comment = CommentModel(
                 id=f"CMT-{uuid.uuid4().hex[:8].upper()}",
@@ -456,6 +475,128 @@ class CommentRepository:
                 .all()
             )
             return [_comment_to_dict(c) for c in rows]
+
+    def update_comment_status(
+        self,
+        comment_id: str,
+        status: str,
+        verified_by_human: bool = True,
+    ) -> bool:
+        """
+        Update the status of a single comment.
+
+        Parameters
+        ----------
+        comment_id:
+            The CommentModel primary key ("CMT-XXXXXXXX").
+        status:
+            Must be one of: "Pending", "Approved", "Rejected", "Flagged".
+            Using any other value will store an unrecognised status that
+            UI components (StatusChip, StatusDelegate) will not render
+            correctly.
+        verified_by_human:
+            Set True when a human reviewer explicitly approves or rejects.
+            Defaults to True for review-screen actions.
+
+        Returns
+        -------
+        bool
+            True if the record was found and updated, False if not found.
+
+        # INTEGRATION NOTE:
+        # This method is called from AppController.update_comment_status().
+        # UI screens must never call this repository method directly.
+        # Status vocabulary: "Pending" | "Approved" | "Rejected" | "Flagged"
+        """
+        _VALID_STATUSES = {"Pending", "Approved", "Rejected", "Flagged"}
+        if status not in _VALID_STATUSES:
+            logger.warning(
+                f"update_comment_status: '{status}' is not a recognised status. "
+                f"Expected one of {_VALID_STATUSES}."
+            )
+
+        with self._db.get_session() as session:
+            row = session.get(CommentModel, comment_id)
+            if row is None:
+                logger.warning(f"update_comment_status: comment '{comment_id}' not found.")
+                return False
+            row.status = status
+            row.is_verified_by_human = verified_by_human
+            row.updated_at = datetime.now(timezone.utc)
+            session.commit()
+            logger.info(f"Comment '{comment_id}' status → '{status}', verified={verified_by_human}")
+            return True
+
+    def update_comment_text(self, comment_id: str, new_text: str) -> bool:
+        """
+        Update the raw OCR text of a single comment.
+
+        Used when a human reviewer corrects an OCR extraction error in the
+        review screen or OCR results screen.
+
+        Parameters
+        ----------
+        comment_id:
+            The CommentModel primary key ("CMT-XXXXXXXX").
+        new_text:
+            The corrected OCR text to store in raw_text.
+
+        Returns
+        -------
+        bool
+            True if the record was found and updated, False if not found.
+
+        # INTEGRATION NOTE:
+        # This method is called from AppController.update_comment_text().
+        # UI screens must never call this repository method directly.
+        """
+        with self._db.get_session() as session:
+            row = session.get(CommentModel, comment_id)
+            if row is None:
+                logger.warning(f"update_comment_text: comment '{comment_id}' not found.")
+                return False
+            row.raw_text = new_text
+            row.updated_at = datetime.now(timezone.utc)
+            session.commit()
+            logger.info(f"Comment '{comment_id}' raw_text updated ({len(new_text)} chars).")
+            return True
+
+    def get_category_counts(
+        self, drawing_id: Optional[str] = None
+    ) -> Dict[str, int]:
+        """
+        Return comment counts grouped by category_name.
+
+        Parameters
+        ----------
+        drawing_id:
+            If provided, counts only comments for that drawing.
+            If None, counts across all drawings in the database.
+
+        Returns
+        -------
+        Dict[str, int]
+            e.g. {"Dimensional": 42, "Structural": 18, ...}
+            Returns an empty dict if no comments exist.
+
+        # INTEGRATION NOTE:
+        # Used by ClassificationPage (per-drawing counts) and AnalyticsPage
+        # (all-drawing counts). Called through AppController.get_category_counts().
+        # UI screens must never call this repository method directly.
+        """
+        with self._db.get_session() as session:
+            query = session.query(
+                CommentModel.category_name,
+                # Use SQLAlchemy func.count for portability across DB backends
+                __import__("sqlalchemy").func.count(CommentModel.id).label("cnt"),
+            )
+            if drawing_id is not None:
+                query = query.filter(CommentModel.drawing_id == drawing_id)
+            rows = query.group_by(CommentModel.category_name).all()
+            return {
+                (row.category_name or "Uncategorized"): row.cnt
+                for row in rows
+            }
 
 
 # ---------------------------------------------------------------------------
