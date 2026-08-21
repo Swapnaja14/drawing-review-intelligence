@@ -146,11 +146,20 @@ class DashboardPage(QWidget):
         for p in projects_list:
             if isinstance(p, dict):
                 p_name = p["name"]
-                p_drawings = str(p["drawings"])
-                p_comments = str(p["comments"])
+                # ARCHITECTURE WARNING:
+                # _project_to_dict() in ProjectRepository does NOT include
+                # "drawings" or "comments" keys. These keys only exist on
+                # the mock_data.Project dataclass. Accessing them here will
+                # raise KeyError when the database returns real project data.
+                # Fix: either add subquery aggregation to
+                # ProjectRepository.get_all_projects(), or use p.get() with
+                # a safe default. See docs/AGENT_INTEGRATION_GUIDELINES.md
+                # WARNING-003 for the recommended direction.
+                p_drawings = str(p.get("drawings", "—"))
+                p_comments = str(p.get("comments", "—"))
                 p_progress = f"{p['progress']}%"
                 p_status = p["status"]
-                p_engineer = p["engineer"]
+                p_engineer = p.get("lead_engineer", p.get("engineer", "—"))
             else:
                 p_name = p.name
                 p_drawings = str(p.drawings)

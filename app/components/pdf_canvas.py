@@ -2,7 +2,7 @@
 pdf_canvas.py — PDF page rendering and annotation canvas utilities.
 
 Provides:
-    make_page_pixmap(width, height) -> QPixmap
+    make_page_pixmap(width, height, comments=None) -> QPixmap
         Renders a simulated engineering drawing page with title block,
         grid lines, and comment bounding boxes.
 
@@ -10,7 +10,26 @@ Provides:
         Hover-highlighted bounding-box overlay for an annotated comment
         on a QGraphicsScene canvas.
 """
+# ARCHITECTURE WARNING:
+# This module previously imported mock_data at module level and used
+# md.COMMENTS[:5] inside make_page_pixmap(). This has been refactored so
+# make_page_pixmap() accepts an optional 'comments' parameter.
+#
+# When comment_viewer_screen.py and review_screen.py are integrated with
+# database-sourced comments, callers must pass real comment data (normalised
+# display dicts from AppController.normalise_comment()) or an empty list.
+#
+# BOUNDING BOX NOTE:
+# The mock_data Comment.bbox format is (x, y, width, height) normalised 0-1.
+# The database CommentModel stores (bbox_x0, bbox_y0, bbox_x1, bbox_y1) in
+# absolute PDF point coordinates.
+# These are NOT interchangeable. See docs/AGENT_INTEGRATION_GUIDELINES.md
+# WARNING-001 and WARNING-009 for the conversion formula.
+#
+# This warning is for all development agents — do not silently mix coordinate
+# systems when passing comments to make_page_pixmap() or BBoxItem.
 from __future__ import annotations
+from typing import List, Any, Optional
 from PySide6.QtWidgets import QGraphicsRectItem
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import (
@@ -32,7 +51,11 @@ _BOX_COLORS: dict[str, tuple[str, float]] = {
 
 # ── Page pixmap factory ───────────────────────────────────────────────────────
 
-def make_page_pixmap(width: int = 700, height: int = 900) -> QPixmap:
+def make_page_pixmap(
+    width: int = 700,
+    height: int = 900,
+    comments: Optional[List[Any]] = None,
+) -> QPixmap:
     """
     Render a simulated engineering drawing page.
 
@@ -40,13 +63,20 @@ def make_page_pixmap(width: int = 700, height: int = 900) -> QPixmap:
     - A grey title block at the bottom.
     - A double-line drawing border.
     - Light grid lines.
-    - Coloured comment bounding boxes from ``mock_data.COMMENTS``.
+    - Coloured comment bounding boxes.
     - Title block text (drawing number, title, scale, date).
 
     Parameters
     ----------
     width, height:
         Pixel dimensions of the generated pixmap (default 700 × 900).
+    comments:
+        Optional list of comment objects/dicts to render as bounding boxes.
+        Each item must expose .status and .bbox (mock objects) OR be a
+        normalised display dict with keys "status" and "bbox"
+        (x_norm, y_norm, w_norm, h_norm in 0-1 range).
+        If None, falls back to md.COMMENTS[:5] for backward compatibility
+        during development. Pass an empty list [] to render no bounding boxes.
 
     Returns
     -------
@@ -76,17 +106,33 @@ def make_page_pixmap(width: int = 700, height: int = 900) -> QPixmap:
         p.drawLine(x_off, 40, x_off, height - 120)
 
     # Comment bounding boxes
-    for c in md.COMMENTS[:5]:
-        x     = int(c.bbox[0] * width)
-        y     = int(c.bbox[1] * height)
-        w     = int(c.bbox[2] * width)
-        h_box = int(c.bbox[3] * height)
+    # ARCHITECTURE NOTE:
+    # comments=None falls back to md.COMMENTS[:5] for backward compatibility.
+    # When screens are integrated with the database, pass normalised display
+    # dicts (from AppController.normalise_comment()) so that the canvas
+    # and the comment list panel show the same data source.
+    # Normalised bbox format: (x_norm, y_norm, w_norm, h_norm) in range 0-1.
+    render_comments = comments if comments is not None else md.COMMENTS[:5]
+
+    for c in render_comments:
+        # Support both mock dataclass objects and normalised display dicts
+        if isinstance(c, dict):
+            status = c.get("status", "Pending")
+            bbox   = c.get("bbox", (0, 0, 0, 0))
+        else:
+            status = c.status
+            bbox   = c.bbox
+
+        x     = int(bbox[0] * width)
+        y     = int(bbox[1] * height)
+        w     = int(bbox[2] * width)
+        h_box = int(bbox[3] * height)
         color = {
             "Approved": QColor("#4ADE80"),
             "Pending":  QColor("#FBBF24"),
             "Flagged":  QColor("#F87171"),
             "Rejected": QColor("#F87171"),
-        }.get(c.status, QColor("#3E9BFF"))
+        }.get(status, QColor("#3E9BFF"))
         color.setAlphaF(0.25)
         p.setBrush(color)
         color2 = QColor(color)
