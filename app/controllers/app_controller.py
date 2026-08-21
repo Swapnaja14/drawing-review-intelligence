@@ -2,13 +2,17 @@
 app/controllers/app_controller.py
 Application Controller & Thread-Safe Background Workers for Desktop UI.
 
+Orchestrates Auth, PDF Operations, File Service, and Processing Workflow Engine,
+while also acting as the single access point between the PySide6 UI layer and all
+backend services and database repositories.
+
 ARCHITECTURE NOTE:
 AppController is the single access point between the PySide6 UI layer and all
 backend services and database repositories. UI screens must NEVER instantiate
 repositories or services directly.
 
 Data flow:
-    UI Screen → AppController → Repository → SQLAlchemy → SQLite
+    UI Screen → AppController → Service / Repository → SQLAlchemy → SQLite
 
 The controller owns two important state properties after a PDF is loaded:
     current_document   → PDFDocumentDTO  (PDF metadata, page dimensions)
@@ -29,6 +33,9 @@ from typing import Any, Dict, List, Optional
 from PySide6.QtCore import QObject, QThread, Signal
 
 from src.services.pdf_service import PDFService
+from src.services.auth_service import AuthService
+from src.services.file_service import FileService
+from src.services.workflow_engine import ProcessingWorkflowEngine
 from src.infrastructure.pdf.pymupdf_adapter import PyMuPDFAdapter
 from src.infrastructure.storage.repository import (
     DatabaseEngine,
@@ -37,6 +44,9 @@ from src.infrastructure.storage.repository import (
     CommentRepository,
 )
 from src.core.dtos.pdf_dtos import PDFDocumentDTO, RenderedPageDTO
+from src.core.dtos.auth_dtos import UserDTO, SessionTokenDTO
+from src.core.dtos.workflow_dtos import WorkflowStepDTO, WorkflowResultDTO, FileValidationResultDTO
+from src.core.exceptions.auth_exceptions import InvalidCredentialsError
 from src.infrastructure.logging.logger import get_logger
 
 # Resolve project root so the DB path is correct regardless of CWD
@@ -49,6 +59,32 @@ logger = get_logger("AppController")
 # ---------------------------------------------------------------------------
 # Background workers
 # ---------------------------------------------------------------------------
+
+class WorkflowWorker(QThread):
+    """Background QThread executing full multi-step drawing processing pipeline without freezing UI."""
+
+    step_signal      = Signal(object)   # Emits WorkflowStepDTO
+    completed_signal = Signal(object)   # Emits WorkflowResultDTO
+    error_signal     = Signal(str)      # Emits error string
+
+    def __init__(self, workflow_engine: ProcessingWorkflowEngine, file_path: Path):
+        super().__init__()
+        self.workflow_engine = workflow_engine
+        self.file_path       = file_path
+
+    def run(self):
+        try:
+            def on_progress(step_snapshot: WorkflowStepDTO):
+                self.step_signal.emit(step_snapshot)
+
+            result = self.workflow_engine.execute_workflow(
+                self.file_path, progress_callback=on_progress
+            )
+            self.completed_signal.emit(result)
+        except Exception as e:
+            logger.error(f"Error in WorkflowWorker: {e}")
+            self.error_signal.emit(str(e))
+
 
 class PDFLoadWorker(QThread):
     """Worker thread: loads a PDF document and saves drawing metadata to DB.
@@ -84,7 +120,7 @@ class PDFLoadWorker(QThread):
 
             drawing_id = ""
             try:
-                result = self.drawing_repo.save_drawing_from_dto(doc_dto)
+                result     = self.drawing_repo.save_drawing_from_dto(doc_dto)
                 drawing_id = result.get("id", "")
             except Exception as exc:
                 logger.warning(f"Database save warning: {exc}")
@@ -110,10 +146,10 @@ class PDFRenderWorker(QThread):
         dpi: int = 300,
     ) -> None:
         super().__init__()
-        self.pdf_service  = pdf_service
-        self.file_path    = file_path
-        self.page_number  = page_number
-        self.dpi          = dpi
+        self.pdf_service = pdf_service
+        self.file_path   = file_path
+        self.page_number = page_number
+        self.dpi         = dpi
 
     def run(self) -> None:
         try:
@@ -147,31 +183,65 @@ class AppController(QObject):
     document_loaded_signal : PDFDocumentDTO
         Emitted (on the main thread) when a PDF has been fully loaded and
         its drawing record saved to the database.
-    page_rendered_signal   : RenderedPageDTO
+    page_rendered_signal : RenderedPageDTO
         Emitted when a background page-render completes.
     processing_error_signal : str
         Emitted on any background worker error.
+    workflow_step_signal : WorkflowStepDTO
+        Emitted at each step of the processing workflow pipeline.
+    workflow_completed_signal : WorkflowResultDTO
+        Emitted when the full workflow pipeline completes.
+    user_signed_in_signal : SessionTokenDTO
+        Emitted after a successful authentication.
+    user_signed_out_signal :
+        Emitted after the current session is signed out.
+    auth_error_signal : str
+        Emitted on authentication failure.
     """
 
+    # PDF / rendering signals
     document_loaded_signal  = Signal(object)   # PDFDocumentDTO
     page_rendered_signal    = Signal(object)   # RenderedPageDTO
     processing_error_signal = Signal(str)
+
+    # Workflow pipeline signals
+    workflow_step_signal      = Signal(object)   # WorkflowStepDTO
+    workflow_completed_signal = Signal(object)   # WorkflowResultDTO
+
+    # Auth signals
+    user_signed_in_signal  = Signal(object)   # SessionTokenDTO
+    user_signed_out_signal = Signal()
+    auth_error_signal      = Signal(str)
 
     def __init__(self, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
 
         # ── Services ──────────────────────────────────────────────
-        self.pdf_adapter = PyMuPDFAdapter()
-        self.pdf_service = PDFService(pdf_loader=self.pdf_adapter)
+        self.pdf_adapter     = PyMuPDFAdapter()
+        self.pdf_service     = PDFService(pdf_loader=self.pdf_adapter)
+        self.file_service    = FileService()
+        self.auth_service: Optional[Any] = None   # initialised after db_engine below
 
         # ── Database ──────────────────────────────────────────────
+        # INTEGRATION NOTE:
+        # _DB_PATH is resolved relative to the project root so the correct
+        # database file is used regardless of the working directory.
         self.db_engine    = DatabaseEngine(db_path=_DB_PATH)
         self.drawing_repo = DrawingRepository(self.db_engine)
         self.project_repo = ProjectRepository(self.db_engine)
         self.comment_repo = CommentRepository(self.db_engine)
 
+        # Auth and workflow services that depend on db_engine
+        self.auth_service    = AuthService(self.db_engine)
+        self.workflow_engine = ProcessingWorkflowEngine(
+            file_service=self.file_service,
+            pdf_service=self.pdf_service,
+            drawing_repo=self.drawing_repo,
+        )
+
         # ── In-session state ──────────────────────────────────────
         self._active_doc: Optional[PDFDocumentDTO] = None
+
         # INTEGRATION NOTE:
         # _current_drawing_id is the DrawingModel.id PK for the currently
         # loaded drawing. It is NOT the PDF filename. Always use this value
@@ -179,9 +249,12 @@ class AppController(QObject):
         # Value is "" (empty string) when no PDF has been loaded this session.
         self._current_drawing_id: str = ""
 
+        self._current_session: Optional[SessionTokenDTO] = None
+
         # ── Worker references ─────────────────────────────────────
-        self._load_worker:   Optional[PDFLoadWorker]   = None
-        self._render_worker: Optional[PDFRenderWorker] = None
+        self._load_worker:     Optional[PDFLoadWorker]   = None
+        self._render_worker:   Optional[PDFRenderWorker] = None
+        self._workflow_worker: Optional[WorkflowWorker]  = None
 
     # ── Properties ────────────────────────────────────────────────
 
@@ -204,7 +277,79 @@ class AppController(QObject):
         """
         return self._current_drawing_id
 
-    # ── PDF operations ────────────────────────────────────────────
+    @property
+    def current_user(self) -> Optional[UserDTO]:
+        """The currently authenticated user, or None if not signed in."""
+        return self._current_session.user if self._current_session else None
+
+    # ── Workflow Pipeline API ──────────────────────────────────────
+
+    def validate_file(self, file_path: str | Path) -> FileValidationResultDTO:
+        """Validates an uploaded PDF drawing file before processing."""
+        return self.file_service.validate_pdf_file(file_path)
+
+    def start_processing_workflow(self, file_path: str | Path) -> None:
+        """Triggers non-blocking background multi-step workflow execution."""
+        path = Path(file_path).resolve()
+        logger.info(f"AppController launching workflow pipeline for: {path.name}")
+
+        if self._workflow_worker and self._workflow_worker.isRunning():
+            self._workflow_worker.terminate()
+            self._workflow_worker.wait()
+
+        self._workflow_worker = WorkflowWorker(self.workflow_engine, path)
+        self._workflow_worker.step_signal.connect(self._on_workflow_step)
+        self._workflow_worker.completed_signal.connect(self._on_workflow_completed)
+        self._workflow_worker.error_signal.connect(self._on_doc_error)
+        self._workflow_worker.start()
+
+    def _on_workflow_step(self, step_snapshot: WorkflowStepDTO) -> None:
+        self.workflow_step_signal.emit(step_snapshot)
+
+    def _on_workflow_completed(self, result_dto: WorkflowResultDTO) -> None:
+        logger.info(f"AppController: Workflow finished for '{result_dto.file_name}'.")
+        self.workflow_completed_signal.emit(result_dto)
+        # Also auto-load document for viewer after workflow completes
+        if self._workflow_worker:
+            path = Path(self._workflow_worker.file_path)
+            if path.exists():
+                doc_dto = self.pdf_service.process_pdf_document(path)
+                self._active_doc = doc_dto
+                self.document_loaded_signal.emit(doc_dto)
+
+    # ── Authentication API ─────────────────────────────────────────
+
+    def sign_in(self, username_or_email: str, password: str) -> bool:
+        """Authenticate a user. Returns True on success, False on failure."""
+        try:
+            session_dto = self.auth_service.authenticate_user(username_or_email, password)
+            self._current_session = session_dto
+            logger.info(f"AppController: User '{session_dto.user.username}' logged in.")
+            self.user_signed_in_signal.emit(session_dto)
+            return True
+        except InvalidCredentialsError as e:
+            err_msg = str(e)
+            logger.warning(f"Sign in failed: {err_msg}")
+            self.auth_error_signal.emit(err_msg)
+            return False
+        except Exception as e:
+            err_msg = f"Unexpected sign in error: {e}"
+            logger.error(err_msg)
+            self.auth_error_signal.emit(err_msg)
+            return False
+
+    def sign_out(self) -> bool:
+        """Sign out the current session. Returns True if a session was active."""
+        if self._current_session:
+            self.auth_service.sign_out(self._current_session.token)
+            user_name = self._current_session.user.username
+            self._current_session = None
+            logger.info(f"AppController: User '{user_name}' signed out.")
+            self.user_signed_out_signal.emit()
+            return True
+        return False
+
+    # ── PDF operations ─────────────────────────────────────────────
 
     def load_pdf_file(self, file_path: str | Path) -> None:
         """Trigger non-blocking background loading of a PDF drawing."""
@@ -245,14 +390,12 @@ class AppController(QObject):
         """Return all project records from the database."""
         return self.project_repo.get_all_projects()
 
-    # ── Comment operations ─────────────────────────────────────────────────
+    # ── Comment operations ─────────────────────────────────────────
     #
     # These methods are the ONLY way UI screens should access comment data.
     # Screens must never instantiate CommentRepository themselves.
 
-    def get_comments_for_drawing(
-        self, drawing_id: str
-    ) -> List[Dict[str, Any]]:
+    def get_comments_for_drawing(self, drawing_id: str) -> List[Dict[str, Any]]:
         """
         Return all normalised comment display dicts for the given drawing.
 
@@ -290,9 +433,7 @@ class AppController(QObject):
         Status vocabulary is fixed. Do not pass arbitrary strings.
         Permitted values: "Pending", "Approved", "Rejected", "Flagged".
         """
-        self.comment_repo.update_comment_status(
-            comment_id, status, verified_by_human
-        )
+        self.comment_repo.update_comment_status(comment_id, status, verified_by_human)
 
     def update_comment_text(self, comment_id: str, new_text: str) -> None:
         """
@@ -321,7 +462,7 @@ class AppController(QObject):
         """
         return self.comment_repo.get_category_counts(drawing_id)
 
-    # ── Data normalisation ─────────────────────────────────────────────────
+    # ── Data normalisation ─────────────────────────────────────────
 
     def normalise_comment(self, db_dict: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -333,47 +474,36 @@ class AppController(QObject):
         are resolved here — they must NOT be scattered through UI files.
 
         DB dict keys → display dict keys:
-            "raw_text"     → "ocr_text"
-            "page_number"  → "page"
-            "category_name"→ "category"
-            "user_id"      → "reviewer"
-            "created_at"   → "timestamp"
-            "id"           → "id"         (unchanged)
-            "drawing_id"   → "drawing_id" (unchanged)
-            "confidence"   → "confidence" (unchanged)
-            "status"       → "status"     (unchanged)
+            "raw_text"      → "ocr_text"
+            "page_number"   → "page"
+            "category_name" → "category"
+            "user_id"       → "reviewer"
+            "created_at"    → "timestamp"
+            "id"            → "id"         (unchanged)
+            "drawing_id"    → "drawing_id" (unchanged)
+            "confidence"    → "confidence" (unchanged)
+            "status"        → "status"     (unchanged)
 
         BBox conversion:
             DB stores (bbox_x0, bbox_y0, bbox_x1, bbox_y1) as absolute PDF
             point coordinates inside the "bbox" tuple.
-            This method returns bbox as a normalised (x, y, w, h) tuple in
-            range 0–1 IF page dimensions are available from current_document.
+            This method returns bbox as normalised (x, y, w, h) in range 0–1
+            if page dimensions are available from current_document.
             Otherwise returns the raw (x0, y0, x1, y1) tuple unchanged.
 
             INTEGRATION WARNING:
-            The comment_viewer_screen must check whether bbox is normalised
-            or absolute. If current_document is None when a drawing is loaded
-            from a previous session, normalisation cannot be performed without
-            an additional PageModel query. See comment_viewer_screen.py for
-            the handling strategy.
-
-        drawing_no:
-            Derived from the drawing's file_name (stripped of extension) as a
-            human-readable label. Requires current_document to be set.
-            Falls back to drawing_id if not available.
+            If current_document is None (no PDF loaded this session),
+            normalisation cannot be performed. See comment_viewer_screen.py.
         """
-        raw_bbox = db_dict.get("bbox", (0.0, 0.0, 0.0, 0.0))
-        normalised_bbox = raw_bbox  # default: pass through unchanged
+        raw_bbox        = db_dict.get("bbox", (0.0, 0.0, 0.0, 0.0))
+        normalised_bbox = raw_bbox   # default: pass through unchanged
 
-        # Attempt normalisation using in-session page dimension data
         doc = self._active_doc
         if doc is not None and len(doc.pages) > 0:
-            page_num = db_dict.get("page_number", 1)
-            # pages list is 0-indexed; page_number is 1-indexed
-            idx = max(0, min(page_num - 1, len(doc.pages) - 1))
-            page_meta = doc.pages[idx]
-            w_pt = page_meta.width_pt
-            h_pt = page_meta.height_pt
+            page_num   = db_dict.get("page_number", 1)
+            idx        = max(0, min(page_num - 1, len(doc.pages) - 1))
+            page_meta  = doc.pages[idx]
+            w_pt, h_pt = page_meta.width_pt, page_meta.height_pt
             if w_pt > 0 and h_pt > 0:
                 x0, y0, x1, y1 = raw_bbox
                 normalised_bbox = (
@@ -383,10 +513,9 @@ class AppController(QObject):
                     (y1 - y0) / h_pt,
                 )
 
-        # Derive a human-readable drawing number from the file name
         drawing_no = db_dict.get("drawing_id", "")
         if doc is not None:
-            drawing_no = doc.file_name.rsplit(".", 1)[0]  # strip extension
+            drawing_no = doc.file_name.rsplit(".", 1)[0]
 
         return {
             "id":          db_dict.get("id", ""),
@@ -398,15 +527,15 @@ class AppController(QObject):
             "confidence":  db_dict.get("confidence", 0.0),
             "status":      db_dict.get("status", "Pending"),
             "bbox":        normalised_bbox,
-            "reviewer":    db_dict.get("user_id"),   # FK; UI shows None or resolves separately
+            "reviewer":    db_dict.get("user_id"),
             "timestamp":   db_dict.get("created_at", ""),
             "is_verified": db_dict.get("is_verified_by_human", False),
         }
 
-    # ── Internal slots ────────────────────────────────────────────
+    # ── Internal slots ─────────────────────────────────────────────
 
     def _on_doc_loaded(self, doc_dto: PDFDocumentDTO, drawing_id: str) -> None:
-        self._active_doc = doc_dto
+        self._active_doc         = doc_dto
         self._current_drawing_id = drawing_id
         logger.info(
             f"AppController: '{doc_dto.file_name}' ready. "

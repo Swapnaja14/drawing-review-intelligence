@@ -130,17 +130,18 @@ $RECYCLE.BIN/
 *.rej
 *~
 
-# PDF test files (optional - uncomment if you don't want to track test PDFs)
-# *.pdf
-# test_files/
-# samples/
-
 # Dataset - Raw drawings folder (large PDF files)
 dataset/raw_drawings/
 raw_drawings/
-# Dataset - Raw drawings folder (large files)
-dataset/raw_drawings/
 dataset/raw_drawings/*
+
+# OCR extracted text output (generated files)
+dataset/extracted_text/
+extracted_text/
+
+# Temporary test files
+test_*.py
+!scripts/test_*.py
 
 # Documentation builds
 docs/_build/

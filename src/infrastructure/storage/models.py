@@ -45,6 +45,11 @@ class UserModel(Base):
     is_active    = Column(Boolean,     nullable=False, default=True)
     created_at   = Column(DateTime,    nullable=False, default=datetime.utcnow)
 
+    # Authentication fields (used by AuthService for PBKDF2 sign-in)
+    password_hash = Column(String(255), nullable=True)
+    salt          = Column(String(64),  nullable=True)
+    last_login    = Column(DateTime,    nullable=True)
+
     # Relationships
     comments = relationship(
         "CommentModel",

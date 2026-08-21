@@ -36,7 +36,7 @@ from app.screens.analytics_screen      import AnalyticsPage
 from app.screens.export_screen         import ExportPage
 from app.screens.settings_screen       import SettingsPage
 
-from app.controllers.app_controller import AppController
+from src.controllers.app_controller import AppController
 
 _PAGE_TITLES = [
     "Dashboard",
@@ -95,6 +95,7 @@ class MainWindow(QMainWindow):
 
         # Connect Upload controller signals to navigate to PDF Viewer
         self.controller.document_loaded_signal.connect(self._on_document_loaded)
+        self.upload_page.open_viewer_requested.connect(self._open_pdf_viewer)
 
         self._pages = [
             self.dashboard_page,
@@ -123,6 +124,10 @@ class MainWindow(QMainWindow):
         self._topbar.set_breadcrumb(_PAGE_TITLES[idx])
         self._pages[idx].setFocus()
 
+    def _open_pdf_viewer(self):
+        self._navigate(2)
+        self._sidebar.set_page(2)
+
     def _on_theme_toggle(self):
         if self._theme:
             self._theme.toggle()
@@ -136,12 +141,11 @@ class MainWindow(QMainWindow):
         reload_comments() can be called here to refresh their data.
         """
         self._status_bar.set_message(f"Loaded: {doc_dto.file_name} ({doc_dto.total_pages} pages)")
-        # Update PDF Viewer page
+        # Update PDF Viewer page with loaded document
         self.pdf_viewer_page.set_document(doc_dto)
         # Refresh comment screens with DB data for the newly loaded drawing
         for page in self._pages:
             if hasattr(page, "reload_comments"):
                 page.reload_comments()
         # Navigate to PDF Viewer screen (Index 2)
-        self._navigate(2)
-        self._sidebar.set_page(2)
+        self._open_pdf_viewer()
