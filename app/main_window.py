@@ -36,7 +36,7 @@ from app.screens.analytics_screen      import AnalyticsPage
 from app.screens.export_screen         import ExportPage
 from app.screens.settings_screen       import SettingsPage
 
-from src.controllers.app_controller import AppController
+from app.controllers.app_controller import AppController
 
 _PAGE_TITLES = [
     "Dashboard",
