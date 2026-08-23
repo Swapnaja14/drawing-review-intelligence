@@ -46,6 +46,14 @@ from src.infrastructure.storage.repository import (
 from src.core.dtos.pdf_dtos import PDFDocumentDTO, RenderedPageDTO
 from src.core.dtos.auth_dtos import UserDTO, SessionTokenDTO
 from src.core.dtos.workflow_dtos import WorkflowStepDTO, WorkflowResultDTO, FileValidationResultDTO
+from src.core.dtos.export_dtos import ExportConfigDTO
+
+# Import new backend services
+from src.services.analytics_service import AnalyticsService
+from src.services.export_service import ExportService
+from src.services.verification_service import VerificationService
+from src.services.text_cleaning_service import TextCleaningService
+from src.services.classification_service import ClassificationService
 from src.core.exceptions.auth_exceptions import InvalidCredentialsError
 from src.infrastructure.logging.logger import get_logger
 
@@ -239,6 +247,13 @@ class AppController(QObject):
             drawing_repo=self.drawing_repo,
         )
 
+        # ── New Backend Services ──────────────────────────────────
+        self.analytics_service      = AnalyticsService(self.db_engine)
+        self.export_service         = ExportService(self.comment_repo, self.project_repo)
+        self.verification_service   = VerificationService(self.comment_repo)
+        self.text_cleaning_service  = TextCleaningService()
+        self.classification_service = ClassificationService()
+
         # ── In-session state ──────────────────────────────────────
         self._active_doc: Optional[PDFDocumentDTO] = None
 
@@ -382,9 +397,18 @@ class AppController(QObject):
 
     # ── Project / dashboard operations ────────────────────────────
 
-    def get_dashboard_kpis(self) -> Dict[str, Any]:
+    def get_dashboard_kpis(self) -> Any:
         """Return live KPI aggregates from the database."""
-        return self.project_repo.get_kpis()
+        return self.analytics_service.get_global_kpis()
+
+    def get_category_distribution(self) -> List[Any]:
+        return self.analytics_service.get_category_distribution()
+
+    def get_pareto_analysis(self, top_n: int = 5) -> List[Any]:
+        return self.analytics_service.get_pareto_analysis(top_n=top_n)
+
+    def get_status_trend(self, drawing_id: str = None) -> List[Any]:
+        return self.analytics_service.get_status_trend(drawing_id=drawing_id)
 
     def get_all_projects(self) -> List[Dict[str, Any]]:
         """Return all project records from the database."""
@@ -433,7 +457,21 @@ class AppController(QObject):
         Status vocabulary is fixed. Do not pass arbitrary strings.
         Permitted values: "Pending", "Approved", "Rejected", "Flagged".
         """
-        self.comment_repo.update_comment_status(comment_id, status, verified_by_human)
+        user_id = self.current_user.id if self.current_user else "anonymous"
+        
+        if status == "Approved":
+            self.verification_service.approve_comment(comment_id, user_id)
+        elif status == "Rejected":
+            self.verification_service.reject_comment(comment_id, user_id, "Rejected via UI")
+        elif status == "Flagged":
+            self.verification_service.flag_comment(comment_id, user_id, "Flagged via UI")
+        else:
+            # Fallback for Pending or other statuses
+            self.comment_repo.update_comment_status(comment_id, status, verified_by_human)
+
+    def get_audit_trail(self, comment_id: str) -> List[Any]:
+        """Return the audit history for a given comment."""
+        return self.verification_service.get_audit_history(comment_id)
 
     def update_comment_text(self, comment_id: str, new_text: str) -> None:
         """
@@ -442,7 +480,11 @@ class AppController(QObject):
         Called from the review screen (edit/save action) and the OCR
         results screen (inline text edit).
         """
-        self.comment_repo.update_comment_text(comment_id, new_text)
+        user_id = self.current_user.id if self.current_user else "anonymous"
+        if hasattr(self.verification_service, "edit_comment_text"):
+            self.verification_service.edit_comment_text(comment_id, new_text, user_id)
+        else:
+            self.comment_repo.update_comment_text(comment_id, new_text)
 
     def get_category_counts(
         self, drawing_id: Optional[str] = None
@@ -461,6 +503,12 @@ class AppController(QObject):
         Dict[str, int] e.g. {"Dimensional": 42, "Structural": 18}
         """
         return self.comment_repo.get_category_counts(drawing_id)
+
+    # ── Export operations ──────────────────────────────────────────
+
+    def export_data(self, config: ExportConfigDTO) -> Any:
+        """Export comments to Excel/CSV/JSON."""
+        return self.export_service.export_drawing_comments(config)
 
     # ── Data normalisation ─────────────────────────────────────────
 

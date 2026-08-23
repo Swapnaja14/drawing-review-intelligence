@@ -8,23 +8,29 @@ Provides:
 """
 from __future__ import annotations
 from datetime import date as _date
+from pathlib import Path
+from typing import Optional, Any
+
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame,
                                 QLabel, QPushButton, QRadioButton, QButtonGroup,
                                 QProgressBar, QTableView, QHeaderView,
-                                QAbstractItemView)
+                                QAbstractItemView, QFileDialog, QMessageBox)
 from PySide6.QtGui import QFont, QStandardItemModel, QStandardItem, QColor
 from PySide6.QtCore import Qt, QTimer
 
+from src.core.dtos.export_dtos import ExportConfigDTO, ExportFormat
 from app import mock_data as md
+
 
 
 # ── Format card ───────────────────────────────────────────────────────────────
 
 _FORMATS = [
     ("📊", "Excel", ".xlsx", "Full data with charts and formatting", "#4ADE80"),
-    ("📄", "PDF",   ".pdf",  "Human-readable formatted report",      "#F87171"),
+    ("📜", "JSON",  ".json", "Structured machine-readable format",   "#60A5FA"),
     ("📋", "CSV",   ".csv",  "Raw data for further analysis",        "#FBBF24"),
 ]
+
 
 
 class _FormatCard(QFrame):
@@ -94,12 +100,13 @@ class _FormatCard(QFrame):
 
 class ExportPage(QWidget):
     """
-    Export — format cards, scope options, simulated progress bar,
+    Export — format cards, scope options, progress bar,
     and an export history table.
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, controller=None, parent=None):
         super().__init__(parent)
+        self._controller       = controller
         self._selected_format  = "Excel"
         self._format_cards: list[_FormatCard] = []
         self._progress         = 0
@@ -179,9 +186,7 @@ class ExportPage(QWidget):
         hist_lay.addWidget(self._hist_table)
         root.addWidget(hist_card, 1)
 
-        self._timer = QTimer()
-        self._timer.setInterval(50)
-        self._timer.timeout.connect(self._tick)
+
 
     # ── Helpers ───────────────────────────────────────────────────
 
@@ -193,27 +198,111 @@ class ExportPage(QWidget):
             self._selected_format = name
         return handler
 
+    def _get_format_details(self) -> tuple[str, str, str]:
+        """Returns (format_code, file_filter, file_extension)."""
+        fmt = self._selected_format
+        if fmt == "JSON":
+            return (ExportFormat.JSON, "JSON Files (*.json);;All Files (*)", ".json")
+        elif fmt == "CSV":
+            return (ExportFormat.CSV, "CSV Files (*.csv);;All Files (*)", ".csv")
+        else:
+            return (ExportFormat.EXCEL, "Excel Files (*.xlsx);;All Files (*)", ".xlsx")
+
+    def _format_size(self, size_bytes: int) -> str:
+        if size_bytes < 1024:
+            return f"{size_bytes} B"
+        elif size_bytes < 1024 * 1024:
+            return f"{size_bytes / 1024:.1f} KB"
+        else:
+            return f"{size_bytes / (1024 * 1024):.1f} MB"
+
     def _start_export(self) -> None:
+        fmt_code, filter_str, ext = self._get_format_details()
+        today_str = _date.today().isoformat()
+
+        drawing_no = "Comments"
+        if self._controller and getattr(self._controller, "current_document", None):
+            doc = self._controller.current_document
+            if hasattr(doc, "file_name") and doc.file_name:
+                drawing_no = doc.file_name.rsplit(".", 1)[0]
+
+        default_filename = f"{drawing_no}_Export_{today_str}{ext}"
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            f"Export {self._selected_format} File",
+            default_filename,
+            filter_str,
+        )
+
+        if not file_path:
+            return
+
+        out_path = Path(file_path)
+
+        if self._controller is None:
+            QMessageBox.critical(
+                self,
+                "Export Error",
+                "Backend controller is not connected.",
+            )
+            return
+
         self._export_btn.setEnabled(False)
         self._prog_bar.show()
-        self._prog_bar.setValue(0)
-        self._progress = 0
-        self._timer.start()
+        self._prog_bar.setValue(50)
 
-    def _tick(self) -> None:
-        self._progress += 3
-        self._prog_bar.setValue(min(self._progress, 100))
-        if self._progress >= 100:
-            self._timer.stop()
-            self._export_btn.setText("✓  Exported!")
+        try:
+            drawing_id = getattr(self._controller, "current_drawing_id", None) or None
+            config = ExportConfigDTO(
+                output_path=out_path,
+                format=fmt_code,
+                drawing_id=drawing_id,
+            )
+
+            result = self._controller.export_data(config)
+            self._prog_bar.setValue(100)
+
+            if result and getattr(result, "success", False):
+                self._export_btn.setText("✓  Exported!")
+                self._prepend_history(
+                    result.output_path,
+                    self._selected_format,
+                    getattr(result, "file_size_bytes", 0),
+                )
+                QTimer.singleShot(
+                    2500, lambda: self._export_btn.setText("  ↑  Export Now")
+                )
+                QTimer.singleShot(
+                    2500, lambda: self._export_btn.setEnabled(True)
+                )
+                self._prog_bar.hide()
+
+                QMessageBox.information(
+                    self,
+                    "Export Successful",
+                    f"Successfully exported {result.total_rows} row(s) to:\n{result.output_path}",
+                )
+            else:
+                err_msg = getattr(result, "error_message", "") if result else "Unknown error"
+                self._export_btn.setText("  ↑  Export Now")
+                self._export_btn.setEnabled(True)
+                self._prog_bar.hide()
+                QMessageBox.critical(
+                    self,
+                    "Export Failed",
+                    f"Failed to export data to:\n{out_path}\n\nError: {err_msg}",
+                )
+        except Exception as e:
+            self._export_btn.setText("  ↑  Export Now")
+            self._export_btn.setEnabled(True)
             self._prog_bar.hide()
-            self._prepend_history()
-            QTimer.singleShot(
-                2500, lambda: self._export_btn.setText("  ↑  Export Now")
+            QMessageBox.critical(
+                self,
+                "Export Failed",
+                f"An error occurred during export:\n{str(e)}",
             )
-            QTimer.singleShot(
-                2500, lambda: self._export_btn.setEnabled(True)
-            )
+
 
     def _build_history_table(self) -> QTableView:
         table = QTableView()
@@ -248,16 +337,15 @@ class ExportPage(QWidget):
             hdr.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
         return table
 
-    def _prepend_history(self) -> None:
+    def _prepend_history(self, output_path: Path | str, format_name: str, size_bytes: int = 0) -> None:
         today = _date.today().isoformat()
-        ext   = {"Excel": ".xlsx", "PDF": ".pdf", "CSV": ".csv"}.get(
-            self._selected_format, ".xlsx"
-        )
+        file_name = Path(output_path).name
+        size_str = self._format_size(size_bytes) if size_bytes > 0 else "—"
         row = [
-            QStandardItem(f"PRJ-001_{self._selected_format}_Export_{today}{ext}"),
-            QStandardItem(self._selected_format),
+            QStandardItem(file_name),
+            QStandardItem(format_name),
             QStandardItem(today),
-            QStandardItem("—"),
+            QStandardItem(size_str),
         ]
         for item in row:
             item.setTextAlignment(
@@ -265,3 +353,4 @@ class ExportPage(QWidget):
             )
             item.setForeground(QColor("#4ADE80"))
         self._hist_model.insertRow(0, row)
+

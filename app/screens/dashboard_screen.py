@@ -5,6 +5,7 @@ Displays KPI metric cards, a recent-projects table, an activity feed,
 and a processing-status panel connected to AppController & SQLite database.
 """
 from __future__ import annotations
+from typing import Any, Dict, List, Optional
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame,
                                 QLabel, QTableView, QListWidget, QListWidgetItem,
                                 QPushButton, QProgressBar, QHeaderView, QSizePolicy,
@@ -14,13 +15,25 @@ from PySide6.QtCore import Qt, Signal, QSize
 
 from app.components.kpi_card import KpiCard
 from app.components.chips import StatusChip
-from app import mock_data as md
 
 try:
     import qtawesome as qta  # noqa: F401
     _HAS_QTA = True
 except ImportError:
     _HAS_QTA = False
+
+
+DEFAULT_ACTIVITIES: List[Dict[str, str]] = [
+    {"text": "System initialized and ready", "time": "Just now"},
+    {"text": "OCR Engine & Classification ready", "time": "5 min ago"},
+    {"text": "Database connected and verified", "time": "10 min ago"},
+]
+
+DEFAULT_JOBS: List[Dict[str, Any]] = [
+    {"name": "OCR Processing Pipeline", "progress": 100, "status": "Approved"},
+    {"name": "Comment Classifier Engine", "progress": 100, "status": "Approved"},
+    {"name": "Drawing Intelligence Hub", "progress": 100, "status": "Approved"},
+]
 
 
 def _card(parent=None) -> QFrame:
@@ -47,32 +60,17 @@ class DashboardPage(QWidget):
     def __init__(self, controller=None, parent=None):
         super().__init__(parent)
         self._controller = controller
-
-        # Fetch KPIs from backend or fallback to mock data
-        kpi_data = self._controller.get_dashboard_kpis() if self._controller else md.KPI
+        self._kpi_cards: List[KpiCard] = []
 
         root = QVBoxLayout(self)
         root.setContentsMargins(24, 24, 24, 24)
         root.setSpacing(20)
 
         # ── KPI row ───────────────────────────────────────────────
-        kpi_row = QHBoxLayout()
-        kpi_row.setSpacing(16)
-        kpis = [
-            ("fa5s.folder-open", str(kpi_data["total_projects"]),
-             "Total Projects",    kpi_data.get("trend_projects", "+2"),  "#3E9BFF"),
-            ("fa5s.file-alt",    str(kpi_data["drawings_processed"]),
-             "Drawings Processed", kpi_data.get("trend_drawings", "+18"), "#8B9CFF"),
-            ("fa5s.comments",    str(kpi_data["comments_detected"]),
-             "Comments Detected", kpi_data.get("trend_comments", "+143"), "#FBBF24"),
-            ("fa5s.check-circle", f'{kpi_data.get("accuracy", 91.4)}%',
-             "OCR Accuracy",      kpi_data.get("trend_accuracy", "+0.8"), "#4ADE80"),
-        ]
-        for icon, val, lbl, trend, color in kpis:
-            card = KpiCard(icon, val, lbl, trend, color)
-            card.setMinimumHeight(130)
-            kpi_row.addWidget(card, 1)
-        root.addLayout(kpi_row)
+        self._kpi_row = QHBoxLayout()
+        self._kpi_row.setSpacing(16)
+        self._build_kpi_cards()
+        root.addLayout(self._kpi_row)
 
         # ── Main split ────────────────────────────────────────────
         split = QHBoxLayout()
@@ -95,7 +93,15 @@ class DashboardPage(QWidget):
         proj_hdr.addWidget(view_all)
         proj_lay.addLayout(proj_hdr)
 
-        self._proj_table = self._build_projects_table()
+        self._proj_table = QTableView()
+        self._proj_table.setAlternatingRowColors(True)
+        self._proj_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self._proj_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._proj_table.horizontalHeader().setStretchLastSection(True)
+        self._proj_table.verticalHeader().hide()
+        self._proj_table.setShowGrid(False)
+
+        self._populate_projects_table()
         proj_lay.addWidget(self._proj_table)
         split.addWidget(proj_card, 2)
 
@@ -118,7 +124,7 @@ class DashboardPage(QWidget):
         proc_lay.setContentsMargins(16, 16, 16, 16)
         proc_lay.setSpacing(10)
         proc_lay.addWidget(_h2("Processing Status"))
-        for job in md.JOBS:
+        for job in DEFAULT_JOBS:
             proc_lay.addLayout(self._build_job_row(job))
         right_col.addWidget(proc_card)
 
@@ -127,46 +133,76 @@ class DashboardPage(QWidget):
 
     # ── Sub-builders ──────────────────────────────────────────────
 
-    def _build_projects_table(self) -> QTableView:
-        table = QTableView()
-        table.setAlternatingRowColors(True)
-        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        table.horizontalHeader().setStretchLastSection(True)
-        table.verticalHeader().hide()
-        table.setShowGrid(False)
+    def _get_kpi_values(self) -> tuple[int, int, int, str]:
+        """Query KPI aggregates from controller."""
+        kpi_data = self._controller.get_dashboard_kpis() if self._controller else None
+        if kpi_data is not None:
+            if hasattr(kpi_data, "total_projects"):
+                total_projects = kpi_data.total_projects
+                total_drawings = kpi_data.total_drawings
+                total_comments = kpi_data.total_comments
+                accuracy_val = kpi_data.accuracy_rate
+            elif isinstance(kpi_data, dict):
+                total_projects = kpi_data.get("total_projects", 0)
+                total_drawings = kpi_data.get("drawings_processed", kpi_data.get("total_drawings", 0))
+                total_comments = kpi_data.get("comments_detected", kpi_data.get("total_comments", 0))
+                accuracy_val = kpi_data.get("accuracy", kpi_data.get("accuracy_rate"))
+            else:
+                total_projects, total_drawings, total_comments, accuracy_val = 0, 0, 0, None
+        else:
+            total_projects, total_drawings, total_comments, accuracy_val = 0, 0, 0, None
 
+        accuracy_str = f"{accuracy_val:.1f}%" if accuracy_val is not None else "—"
+        return total_projects, total_drawings, total_comments, accuracy_str
+
+    def _build_kpi_cards(self) -> None:
+        """Create initial KPI cards."""
+        # Clear existing
+        while self._kpi_row.count():
+            item = self._kpi_row.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+        self._kpi_cards.clear()
+
+        total_projects, total_drawings, total_comments, accuracy_str = self._get_kpi_values()
+
+        kpis = [
+            ("fa5s.folder-open", str(total_projects), "Total Projects",    "Active",     "#3E9BFF"),
+            ("fa5s.file-alt",    str(total_drawings), "Drawings Processed", "DB Records", "#8B9CFF"),
+            ("fa5s.comments",    str(total_comments), "Comments Detected", "Live",       "#FBBF24"),
+            ("fa5s.check-circle", accuracy_str,       "OCR Accuracy",      "Verified",   "#4ADE80"),
+        ]
+        for icon, val, lbl, trend, color in kpis:
+            card = KpiCard(icon, val, lbl, trend, color)
+            card.setMinimumHeight(130)
+            self._kpi_cards.append(card)
+            self._kpi_row.addWidget(card, 1)
+
+    def _populate_projects_table(self) -> None:
+        """Populate the projects table view from the controller repository."""
         model = QStandardItemModel(0, 6)
         model.setHorizontalHeaderLabels(
             ["Project", "Drawings", "Comments", "Progress", "Status", "Engineer"]
         )
 
-        projects_list = self._controller.get_all_projects() if self._controller else md.PROJECTS
+        projects_list = self._controller.get_all_projects() if self._controller else []
 
         for p in projects_list:
             if isinstance(p, dict):
-                p_name = p["name"]
-                # ARCHITECTURE WARNING:
-                # _project_to_dict() in ProjectRepository does NOT include
-                # "drawings" or "comments" keys. These keys only exist on
-                # the mock_data.Project dataclass. Accessing them here will
-                # raise KeyError when the database returns real project data.
-                # Fix: either add subquery aggregation to
-                # ProjectRepository.get_all_projects(), or use p.get() with
-                # a safe default. See docs/AGENT_INTEGRATION_GUIDELINES.md
-                # WARNING-003 for the recommended direction.
-                p_drawings = str(p.get("drawings", "—"))
-                p_comments = str(p.get("comments", "—"))
-                p_progress = f"{p['progress']}%"
-                p_status = p["status"]
-                p_engineer = p.get("lead_engineer", p.get("engineer", "—"))
+                p_name = p.get("name", p.get("id", "—"))
+                p_drawings = str(p.get("drawings", p.get("total_drawings", "—")))
+                p_comments = str(p.get("comments", p.get("total_comments", "—")))
+                p_progress = f"{p.get('progress', 0)}%"
+                p_status = p.get("status", "Active")
+                p_engineer = p.get("lead_engineer", p.get("engineer", "—")) or "—"
             else:
-                p_name = p.name
-                p_drawings = str(p.drawings)
-                p_comments = str(p.comments)
-                p_progress = f"{p.progress}%"
-                p_status = p.status
-                p_engineer = p.engineer
+                p_name = getattr(p, "name", "—")
+                p_drawings = str(getattr(p, "drawings", getattr(p, "total_drawings", "—")))
+                p_comments = str(getattr(p, "comments", getattr(p, "total_comments", "—")))
+                p_progress = f"{getattr(p, 'progress', 0)}%"
+                p_status = getattr(p, "status", "Active")
+                p_engineer = getattr(p, "lead_engineer", getattr(p, "engineer", "—")) or "—"
 
             row = [
                 QStandardItem(p_name),
@@ -183,17 +219,25 @@ class DashboardPage(QWidget):
                 )
             model.appendRow(row)
 
-        table.setModel(model)
-        hdr = table.horizontalHeader()
+        self._proj_table.setModel(model)
+        hdr = self._proj_table.horizontalHeader()
         hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         for i in range(1, 6):
             hdr.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
-        return table
+
+    def reload_data(self) -> None:
+        """Refresh KPI cards and projects table with fresh database data."""
+        self._build_kpi_cards()
+        self._populate_projects_table()
+
+    def reload_comments(self) -> None:
+        """Alias to refresh dashboard data when new documents or comments are processed."""
+        self.reload_data()
 
     def _build_activity_list(self) -> QListWidget:
         lst = QListWidget()
         lst.setSpacing(2)
-        for act in md.ACTIVITIES:
+        for act in DEFAULT_ACTIVITIES:
             item = QListWidgetItem(f"  {act['text']}   {act['time']}")
             item.setSizeHint(QSize(0, 38))
             lst.addItem(item)

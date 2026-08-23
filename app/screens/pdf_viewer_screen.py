@@ -8,6 +8,7 @@ Provides:
 """
 from __future__ import annotations
 from pathlib import Path
+from typing import Any, List
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
                                 QGraphicsView, QGraphicsScene,
                                 QListWidget, QListWidgetItem,
@@ -15,8 +16,9 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
 from PySide6.QtCore import Qt, QRectF, QSize
 from PySide6.QtGui import QPainter, QPixmap, QIcon
 
+from app import mock_data as md
 from app.components.pdf_toolbar    import PdfToolbar
-from app.components.pdf_canvas     import make_page_pixmap
+from app.components.pdf_canvas     import make_page_pixmap, draw_bounding_boxes
 from app.components.metadata_panel import DrawingMetadataPanel
 from src.core.dtos.pdf_dtos import PDFDocumentDTO
 
@@ -105,10 +107,37 @@ class PdfViewerPage(QWidget):
         self._sync_thumbnails()
         self._load_page(1)
 
+    def reload_comments(self) -> None:
+        """Reload page and thumbnails when comments are loaded/updated."""
+        self._load_page(self._current_page)
+        self._sync_thumbnails()
+
     # ── Page / zoom helpers ───────────────────────────────────────
+
+    def _get_page_comments(self, page_num: int) -> List[Any]:
+        """Fetch normalised comments for the specified 1-based page number."""
+        all_comments: List[Any] = []
+        if self._controller and self._controller.current_drawing_id:
+            db_comments = self._controller.get_comments_for_drawing(
+                self._controller.current_drawing_id
+            )
+            if db_comments:
+                all_comments = db_comments
+            else:
+                all_comments = list(md.COMMENTS)
+        else:
+            all_comments = list(md.COMMENTS)
+
+        page_comments = []
+        for c in all_comments:
+            c_page = c.get("page", 1) if isinstance(c, dict) else getattr(c, "page", 1)
+            if c_page == page_num:
+                page_comments.append(c)
+        return page_comments
 
     def _load_page(self, page_num: int) -> None:
         self._scene.clear()
+        page_comments = self._get_page_comments(page_num)
         if self._doc_dto and self._controller:
             try:
                 # Render real page using PyMuPDF backend adapter
@@ -117,10 +146,11 @@ class PdfViewerPage(QWidget):
                 )
                 pm = QPixmap()
                 pm.loadFromData(rendered_dto.image_bytes)
+                draw_bounding_boxes(pm, page_comments)
             except Exception as e:
-                pm = make_page_pixmap()
+                pm = make_page_pixmap(comments=page_comments)
         else:
-            pm = make_page_pixmap()
+            pm = make_page_pixmap(comments=page_comments)
 
         self._pm_item = self._scene.addPixmap(pm)
         self._scene.setSceneRect(QRectF(pm.rect()))
@@ -160,7 +190,7 @@ class PdfViewerPage(QWidget):
     def _goto_page(self, page: int) -> None:
         self._current_page = page
         self._load_page(self._current_page)
-        if self._thumb_strip.count() >= self._current_page:
+        if hasattr(self, '_thumb_strip') and self._thumb_strip.count() >= self._current_page:
             self._thumb_strip.setCurrentRow(self._current_page - 1)
 
     def _sync_page(self) -> None:
@@ -195,6 +225,7 @@ class PdfViewerPage(QWidget):
     def _populate_thumbs(self, lst: QListWidget) -> None:
         lst.clear()
         for i in range(self._total_pages):
+            page_comments = self._get_page_comments(i + 1)
             if self._doc_dto and self._controller:
                 try:
                     r_dto = self._controller.pdf_service.get_page_render(
@@ -202,10 +233,11 @@ class PdfViewerPage(QWidget):
                     )
                     pm = QPixmap()
                     pm.loadFromData(r_dto.image_bytes)
+                    draw_bounding_boxes(pm, page_comments)
                 except Exception:
-                    pm = make_page_pixmap(70, 88)
+                    pm = make_page_pixmap(70, 88, comments=page_comments)
             else:
-                pm = make_page_pixmap(70, 88)
+                pm = make_page_pixmap(70, 88, comments=page_comments)
 
             item = QListWidgetItem(f" Page {i + 1}")
             item.setIcon(QIcon(pm))

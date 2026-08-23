@@ -3,17 +3,17 @@ analytics_screen.py — Dashboard Analytics screen.
 
 Provides:
     AnalyticsPage(QWidget)
-        Filter bar, KPI summary cards, and a grid of Pareto, monthly trend,
-        and category distribution charts.
+        Filter bar, KPI summary cards, and a grid of Pareto, status trend,
+        and category distribution charts connected to AppController & SQLite database.
 """
 from __future__ import annotations
+from typing import Any, Dict, List, Optional
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame,
                                 QLabel, QPushButton, QComboBox,
                                 QDateEdit, QGridLayout)
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont
 
-from app import mock_data as md
 from app.components.kpi_card import KpiCard
 from app.components.charts import (
     build_pareto_chart,
@@ -21,14 +21,28 @@ from app.components.charts import (
     build_category_pie,
 )
 
+STANDARD_CATEGORIES: List[str] = [
+    "Piping/Process",
+    "Electrical/Instrumentation",
+    "Structural/Civil",
+    "Safety/HSE",
+    "Dimensional/Tolerancing",
+    "General/Administrative",
+    "Uncategorized",
+]
+
 
 class AnalyticsPage(QWidget):
     """
-    Analytics Dashboard — filter bar, KPI cards, Pareto + line + donut charts.
+    Analytics Dashboard — filter bar, KPI cards, Pareto + line + donut charts
+    connected to AppController backend.
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, controller=None, parent=None):
         super().__init__(parent)
+        self._controller = controller
+        self._kpi_cards: List[KpiCard] = []
+
         root = QVBoxLayout(self)
         root.setContentsMargins(24, 24, 24, 24)
         root.setSpacing(16)
@@ -37,61 +51,147 @@ class AnalyticsPage(QWidget):
         fb = QHBoxLayout()
         fb.setSpacing(12)
 
-        for label, items in [
-            ("Project",  ["All Projects"]  + [p.name for p in md.PROJECTS]),
-            ("Category", ["All Categories"] + list(md.CATEGORY_COUNTS.keys())),
-        ]:
-            lbl = QLabel(f"{label}:")
-            lbl.setObjectName("SubCaption")
-            fb.addWidget(lbl)
-            cb = QComboBox()
-            cb.addItems(items)
-            cb.setFixedHeight(36)
-            fb.addWidget(cb)
+        # Project combobox
+        p_lbl = QLabel("Project:")
+        p_lbl.setObjectName("SubCaption")
+        fb.addWidget(p_lbl)
+        self._proj_cb = QComboBox()
+        self._proj_cb.setFixedHeight(36)
+        fb.addWidget(self._proj_cb)
+
+        # Category combobox
+        c_lbl = QLabel("Category:")
+        c_lbl.setObjectName("SubCaption")
+        fb.addWidget(c_lbl)
+        self._cat_cb = QComboBox()
+        self._cat_cb.setFixedHeight(36)
+        fb.addWidget(self._cat_cb)
+
+        self._populate_filters()
 
         from_lbl = QLabel("From:")
         from_lbl.setObjectName("SubCaption")
         fb.addWidget(from_lbl)
-        date_from = QDateEdit(QDate(2026, 1, 1))
-        date_from.setFixedHeight(36)
-        fb.addWidget(date_from)
+        self._date_from = QDateEdit(QDate(2026, 1, 1))
+        self._date_from.setFixedHeight(36)
+        fb.addWidget(self._date_from)
 
         to_lbl = QLabel("To:")
         to_lbl.setObjectName("SubCaption")
         fb.addWidget(to_lbl)
-        date_to = QDateEdit(QDate.currentDate())
-        date_to.setFixedHeight(36)
-        fb.addWidget(date_to)
+        self._date_to = QDateEdit(QDate.currentDate())
+        self._date_to.setFixedHeight(36)
+        fb.addWidget(self._date_to)
 
         fb.addStretch()
 
         apply_btn = QPushButton("Apply Filters")
         apply_btn.setObjectName("PrimaryBtn")
         apply_btn.setFixedHeight(36)
+        apply_btn.clicked.connect(self._apply_filters)
         fb.addWidget(apply_btn)
         root.addLayout(fb)
 
         # ── KPI summary ───────────────────────────────────────────
-        kpi_row = QHBoxLayout()
-        kpi_row.setSpacing(16)
-        for icon, val, lbl, trend, color in [
-            ("fa5s.comments",     "2,036", "Total Comments", "+143", "#3E9BFF"),
-            ("fa5s.check-circle", "1,812", "Approved",       "+128", "#4ADE80"),
-            ("fa5s.times-circle", "  112", "Rejected",       "−8",   "#F87171"),
-            ("fa5s.flag",         "  112", "Flagged",        "+23",  "#FBBF24"),
-        ]:
-            card = KpiCard(icon, val, lbl, trend, color)
-            card.setMinimumHeight(120)
-            kpi_row.addWidget(card, 1)
-        root.addLayout(kpi_row)
+        self._kpi_row = QHBoxLayout()
+        self._kpi_row.setSpacing(16)
+        self._build_kpi_cards()
+        root.addLayout(self._kpi_row)
 
         # ── Chart grid ────────────────────────────────────────────
-        grid = QGridLayout()
-        grid.setSpacing(16)
+        self._grid = QGridLayout()
+        self._grid.setSpacing(16)
+        self._build_charts()
+        root.addLayout(self._grid, 1)
 
-        pareto_view  = build_pareto_chart()
-        monthly_view = build_monthly_chart()
-        pie_view     = build_category_pie()
+    def _populate_filters(self) -> None:
+        """Populate project and category filter dropdowns."""
+        self._proj_cb.clear()
+        projects = ["All Projects"]
+        if self._controller:
+            try:
+                records = self._controller.get_all_projects()
+                for p in records:
+                    name = p.get("name", p.get("id", "Project")) if isinstance(p, dict) else getattr(p, "name", "Project")
+                    projects.append(name)
+            except Exception:
+                pass
+        self._proj_cb.addItems(projects)
+
+        self._cat_cb.clear()
+        categories = ["All Categories"]
+        if self._controller:
+            try:
+                cat_dist = self._controller.get_category_distribution()
+                for c in cat_dist:
+                    c_name = getattr(c, "category_name", str(c))
+                    if c_name and c_name not in categories:
+                        categories.append(c_name)
+            except Exception:
+                pass
+        if len(categories) == 1:
+            categories.extend(STANDARD_CATEGORIES)
+        self._cat_cb.addItems(categories)
+
+    def _build_kpi_cards(self) -> None:
+        """Fetch real KPI summary data and build/update KPI cards."""
+        while self._kpi_row.count():
+            item = self._kpi_row.takeAt(0)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+        self._kpi_cards.clear()
+
+        kpi_data = self._controller.get_dashboard_kpis() if self._controller else None
+
+        if kpi_data is not None:
+            if hasattr(kpi_data, "total_comments"):
+                total_comments = kpi_data.total_comments
+                approved_count = kpi_data.approved_count
+                rejected_count = kpi_data.rejected_count
+                flagged_count = kpi_data.flagged_count
+            elif isinstance(kpi_data, dict):
+                total_comments = kpi_data.get("total_comments", 0)
+                approved_count = kpi_data.get("approved_count", 0)
+                rejected_count = kpi_data.get("rejected_count", 0)
+                flagged_count = kpi_data.get("flagged_count", 0)
+            else:
+                total_comments, approved_count, rejected_count, flagged_count = 0, 0, 0, 0
+        else:
+            total_comments, approved_count, rejected_count, flagged_count = 0, 0, 0, 0
+
+        approved_pct = f"{(approved_count / total_comments * 100):.1f}%" if total_comments > 0 else "0%"
+        rejected_pct = f"{(rejected_count / total_comments * 100):.1f}%" if total_comments > 0 else "0%"
+        flagged_pct = f"{(flagged_count / total_comments * 100):.1f}%" if total_comments > 0 else "0%"
+
+        kpi_items = [
+            ("fa5s.comments",     f"{total_comments:,}", "Total Comments", "Total in DB", "#3E9BFF"),
+            ("fa5s.check-circle", f"{approved_count:,}", "Approved",       approved_pct,  "#4ADE80"),
+            ("fa5s.times-circle", f"{rejected_count:,}", "Rejected",       rejected_pct,  "#F87171"),
+            ("fa5s.flag",         f"{flagged_count:,}",  "Flagged",        flagged_pct,   "#FBBF24"),
+        ]
+
+        for icon, val, lbl, trend, color in kpi_items:
+            card = KpiCard(icon, val, lbl, trend, color)
+            card.setMinimumHeight(120)
+            self._kpi_cards.append(card)
+            self._kpi_row.addWidget(card, 1)
+
+    def _build_charts(self) -> None:
+        """Fetch real data for charts and populate the grid."""
+        while self._grid.count():
+            item = self._grid.takeAt(0)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+
+        pareto_data = self._controller.get_pareto_analysis() if self._controller else None
+        category_data = self._controller.get_category_distribution() if self._controller else None
+        trend_data = self._controller.get_status_trend() if self._controller else None
+
+        pareto_view  = build_pareto_chart(pareto_data)
+        monthly_view = build_monthly_chart(trend_data)
+        pie_view     = build_category_pie(category_data)
 
         def _wrap(view, min_h: int = 280) -> QFrame:
             f = QFrame()
@@ -102,8 +202,19 @@ class AnalyticsPage(QWidget):
             lay.addWidget(view)
             return f
 
-        grid.addWidget(_wrap(pareto_view,  320), 0, 0, 2, 1)
-        grid.addWidget(_wrap(monthly_view, 220), 0, 1)
-        grid.addWidget(_wrap(pie_view,     220), 1, 1)
+        self._grid.addWidget(_wrap(pareto_view,  320), 0, 0, 2, 1)
+        self._grid.addWidget(_wrap(monthly_view, 220), 0, 1)
+        self._grid.addWidget(_wrap(pie_view,     220), 1, 1)
 
-        root.addLayout(grid, 1)
+    def _apply_filters(self) -> None:
+        """Trigger reload of KPIs and charts based on current filter state."""
+        self.reload_data()
+
+    def reload_data(self) -> None:
+        """Reload live KPI metrics, charts, and filter options from the controller."""
+        self._build_kpi_cards()
+        self._build_charts()
+
+    def reload_comments(self) -> None:
+        """Alias to refresh analytics when comments or drawings update."""
+        self.reload_data()

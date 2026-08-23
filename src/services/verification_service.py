@@ -114,3 +114,7 @@ class VerificationService:
         if comment_id:
             return [entry for entry in self._audit_log if entry.comment_id == comment_id]
         return self._audit_log
+
+    def get_audit_history(self, comment_id: Optional[str] = None) -> List[AuditLogEntryDTO]:
+        return self.get_audit_log(comment_id)
+
