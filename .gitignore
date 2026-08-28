@@ -139,9 +139,7 @@ dataset/raw_drawings/*
 dataset/extracted_text/
 extracted_text/
 
-# Temporary test files
-test_*.py
-!scripts/test_*.py
+
 
 # Documentation builds
 docs/_build/
