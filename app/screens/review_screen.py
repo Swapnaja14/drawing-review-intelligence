@@ -32,7 +32,7 @@ from typing import Any, Dict, List, Optional, Union
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame,
                                 QLabel, QPushButton, QTextEdit, QComboBox,
                                 QProgressBar, QSplitter, QSizePolicy,
-                                QGraphicsView, QGraphicsScene)
+                                QGraphicsView, QGraphicsScene, QScrollArea)
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QFont, QPainter, QKeyEvent
 
@@ -220,6 +220,42 @@ class HumanReviewPage(QWidget):
         status_row.addStretch()
         lay.addLayout(status_row)
 
+        # Audit history collapsible panel
+        self._audit_card = QFrame()
+        self._audit_card.setObjectName("Card")
+        audit_lay = QVBoxLayout(self._audit_card)
+        audit_lay.setContentsMargins(14, 10, 14, 10)
+        audit_lay.setSpacing(6)
+
+        audit_hdr_row = QHBoxLayout()
+        self._audit_toggle_btn = QPushButton("▼  Audit History (0)")
+        self._audit_toggle_btn.setObjectName("GhostBtn")
+        self._audit_toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._audit_toggle_btn.setStyleSheet(
+            "QPushButton { text-align: left; font-weight: 600; font-size: 13px; padding: 2px 0px; height: 24px; border: none; }"
+        )
+        self._audit_toggle_btn.clicked.connect(self._toggle_audit_panel)
+        audit_hdr_row.addWidget(self._audit_toggle_btn)
+        audit_hdr_row.addStretch()
+        audit_lay.addLayout(audit_hdr_row)
+
+        self._audit_container = QWidget()
+        self._audit_items_lay = QVBoxLayout(self._audit_container)
+        self._audit_items_lay.setContentsMargins(0, 2, 0, 0)
+        self._audit_items_lay.setSpacing(6)
+
+        self._audit_scroll = QScrollArea()
+        self._audit_scroll.setWidgetResizable(True)
+        self._audit_scroll.setWidget(self._audit_container)
+        self._audit_scroll.setMaximumHeight(130)
+        self._audit_scroll.setStyleSheet(
+            "QScrollArea { background: transparent; border: none; }"
+            "QWidget { background: transparent; }"
+        )
+        audit_lay.addWidget(self._audit_scroll)
+
+        lay.addWidget(self._audit_card)
+
         # Action bar
         action_bar = QHBoxLayout()
         action_bar.setSpacing(8)
@@ -237,6 +273,16 @@ class HumanReviewPage(QWidget):
         self._reject_btn.setFixedHeight(36)
         self._reject_btn.clicked.connect(self._reject)
         action_bar.addWidget(self._reject_btn)
+
+        self._flag_btn = QPushButton("⚐  Flag")
+        self._flag_btn.setObjectName("SecondaryBtn")
+        self._flag_btn.setStyleSheet(
+            "QPushButton#SecondaryBtn { color:#FBBF24; border:1px solid #FBBF24; }"
+            "QPushButton#SecondaryBtn:hover { background-color:#FBBF241A; }"
+        )
+        self._flag_btn.setFixedHeight(36)
+        self._flag_btn.clicked.connect(self._flag)
+        action_bar.addWidget(self._flag_btn)
 
         self._edit_btn = QPushButton("✎  Edit")
         self._edit_btn.setObjectName("SecondaryBtn")
@@ -261,7 +307,7 @@ class HumanReviewPage(QWidget):
         lay.addLayout(action_bar)
 
         hint = QLabel(
-            "Keyboard: A = Approve  ·  R = Reject  ·  ← / → = Prev / Next"
+            "Keyboard: A = Approve  ·  R = Reject  ·  F = Flag  ·  ← / → = Prev / Next"
         )
         hint.setObjectName("SubCaption")
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -313,12 +359,116 @@ class HumanReviewPage(QWidget):
         self._prev_btn.setEnabled(self._idx > 0)
         self._next_btn.setEnabled(self._idx < total - 1)
 
+        self._load_audit_trail(cid)
+
     def _flash_card(self, color: str) -> None:
         orig = self._edit_card.styleSheet()
         self._edit_card.setStyleSheet(
             f"#Card {{ border:2px solid {color}; border-radius:8px; }}"
         )
         QTimer.singleShot(350, lambda: self._edit_card.setStyleSheet(orig))
+
+    def _toggle_audit_panel(self) -> None:
+        is_visible = self._audit_scroll.isVisible()
+        self._audit_scroll.setVisible(not is_visible)
+        count_text = self._audit_toggle_btn.text().split("Audit History")[-1]
+        prefix = "▶" if is_visible else "▼"
+        self._audit_toggle_btn.setText(f"{prefix}  Audit History{count_text}")
+
+    def _build_audit_row(self, entry: Any) -> QWidget:
+        row_frame = QFrame()
+        row_frame.setStyleSheet(
+            "QFrame { background: #26272B; border: 1px solid #3A3C42; border-radius: 6px; }"
+        )
+        row_lay = QHBoxLayout(row_frame)
+        row_lay.setContentsMargins(8, 5, 8, 5)
+        row_lay.setSpacing(8)
+
+        raw_action = str(_get(entry, "action", "action"))
+        action_name = raw_action.upper()
+        badge_styles = {
+            "APPROVE": ("#4ADE80", "#1a3d26"),
+            "REJECT": ("#F87171", "#3d1a1a"),
+            "FLAG": ("#FBBF24", "#3d2e0a"),
+            "EDIT_TEXT": ("#3E9BFF", "#0d2540"),
+            "EDIT_CATEGORY": ("#A78BFA", "#2a1a4d"),
+            "BULK_APPROVE": ("#2DD4BF", "#0a2d2a"),
+        }
+        fg, bg = badge_styles.get(action_name, ("#A6A9B1", "#3A3C42"))
+        action_lbl = QLabel(action_name)
+        action_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        action_lbl.setStyleSheet(
+            f"color: {fg}; background-color: {bg}; border-radius: 3px; padding: 2px 6px;"
+        )
+        row_lay.addWidget(action_lbl)
+
+        user_id = _get(entry, "changed_by_user_id", "") or _get(entry, "reviewer_id", "") or "anonymous"
+        user_lbl = QLabel(f"by {user_id}")
+        user_lbl.setFont(QFont("Segoe UI Variable", 11, QFont.Weight.DemiBold))
+        user_lbl.setStyleSheet("color: #F2F3F5;")
+        row_lay.addWidget(user_lbl)
+
+        details = _get(entry, "details", "") or _get(entry, "notes", "")
+        if not details:
+            old_v = _get(entry, "old_value", "")
+            new_v = _get(entry, "new_value", "")
+            if old_v or new_v:
+                details = f"{old_v} → {new_v}"
+        if details:
+            detail_lbl = QLabel(str(details))
+            detail_lbl.setFont(QFont("Segoe UI Variable", 11))
+            detail_lbl.setStyleSheet("color: #A6A9B1;")
+            detail_lbl.setWordWrap(True)
+            row_lay.addWidget(detail_lbl)
+
+        row_lay.addStretch()
+
+        ts = _get(entry, "timestamp", "")
+        if hasattr(ts, "strftime"):
+            ts_str = ts.strftime("%H:%M:%S")
+        else:
+            ts_str = str(ts)
+        ts_lbl = QLabel(ts_str)
+        ts_lbl.setFont(QFont("Cascadia Code", 10))
+        ts_lbl.setStyleSheet("color: #717680;")
+        row_lay.addWidget(ts_lbl)
+
+        return row_frame
+
+    def _load_audit_trail(self, cid: str) -> None:
+        """Fetch and render the audit history for the specified comment."""
+        while self._audit_items_lay.count() > 0:
+            item = self._audit_items_lay.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        if not cid:
+            self._audit_toggle_btn.setText("▼  Audit History (0)")
+            empty_lbl = QLabel("No comment selected.")
+            empty_lbl.setFont(QFont("Segoe UI", 11))
+            empty_lbl.setStyleSheet("color: #717680; padding: 2px 4px;")
+            self._audit_items_lay.addWidget(empty_lbl)
+            return
+
+        entries: List[Any] = []
+        if self._controller and hasattr(self._controller, "get_audit_trail"):
+            try:
+                entries = self._controller.get_audit_trail(cid) or []
+            except Exception:
+                entries = []
+
+        count = len(entries)
+        prefix = "▼" if self._audit_scroll.isVisible() else "▶"
+        self._audit_toggle_btn.setText(f"{prefix}  Audit History ({count})")
+
+        if not entries:
+            empty_lbl = QLabel("No audit history recorded yet.")
+            empty_lbl.setFont(QFont("Segoe UI", 11))
+            empty_lbl.setStyleSheet("color: #717680; padding: 2px 4px;")
+            self._audit_items_lay.addWidget(empty_lbl)
+        else:
+            for entry in reversed(entries):
+                self._audit_items_lay.addWidget(self._build_audit_row(entry))
 
     def _set_status(self, status: str) -> None:
         """Update status in memory and persist to database via controller."""
@@ -336,6 +486,7 @@ class HumanReviewPage(QWidget):
         if self._controller and cid and not cid.startswith("C-"):
             # cid starting with "C-" indicates mock data — do not persist
             self._controller.update_comment_status(cid, status)
+            self._load_audit_trail(cid)
 
     # ── Action slots ──────────────────────────────────────────────
 
@@ -347,6 +498,11 @@ class HumanReviewPage(QWidget):
     def _reject(self) -> None:
         self._set_status("Rejected")
         self._flash_card("#F87171")
+        QTimer.singleShot(400, self._next)
+
+    def _flag(self) -> None:
+        self._set_status("Flagged")
+        self._flash_card("#FBBF24")
         QTimer.singleShot(400, self._next)
 
     def _toggle_edit(self) -> None:
@@ -370,6 +526,7 @@ class HumanReviewPage(QWidget):
                     self._controller.update_comment_text(
                         cid, self._ocr_edit.toPlainText()
                     )
+                    self._load_audit_trail(cid)
 
     def _prev(self) -> None:
         if self._idx > 0:
@@ -391,6 +548,8 @@ class HumanReviewPage(QWidget):
             self._approve()
         elif key == Qt.Key.Key_R:
             self._reject()
+        elif key == Qt.Key.Key_F:
+            self._flag()
         elif key == Qt.Key.Key_Left:
             self._prev()
         elif key == Qt.Key.Key_Right:

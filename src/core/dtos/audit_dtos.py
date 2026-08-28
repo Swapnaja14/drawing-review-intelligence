@@ -20,6 +20,18 @@ class AuditLogEntryDTO:
     timestamp: datetime
     notes: str = ''
 
+    @property
+    def changed_by_user_id(self) -> str:
+        return self.reviewer_id
+
+    @property
+    def details(self) -> str:
+        if self.notes:
+            return self.notes
+        if self.old_value or self.new_value:
+            return f"{self.old_value} → {self.new_value}"
+        return ""
+
 @dataclass
 class VerificationSummaryDTO:
     total_comments: int

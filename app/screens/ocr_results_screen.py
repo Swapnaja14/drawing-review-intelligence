@@ -26,13 +26,128 @@ from typing import Any, Dict, List, Optional, Union
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame,
                                 QLabel, QTableView, QPushButton, QComboBox,
-                                QHeaderView, QAbstractItemView)
+                                QHeaderView, QAbstractItemView, QDialog,
+                                QTextEdit, QScrollArea, QMessageBox)
 from PySide6.QtGui import QFont, QStandardItemModel, QStandardItem
 from PySide6.QtCore import Qt, QSortFilterProxyModel
 
 from app import mock_data as md
 from app.components.comment_table import ConfidenceDelegate, StatusDelegate
 from app.components.search_bar import SearchBar
+from src.services.text_cleaning_service import TextCleaningService
+from src.core.dtos.comment_processing_dtos import CleanedCommentDTO, CorrectionDTO
+
+
+class CleanTextDialog(QDialog):
+    """
+    Modal dialog displaying OCR text cleaning results and corrections,
+    allowing the user to inspect differences and save cleaned text back to the comment.
+    """
+
+    def __init__(
+        self,
+        comment_id: str,
+        original_text: str,
+        cleaned_dto: CleanedCommentDTO,
+        parent: Optional[QWidget] = None,
+    ):
+        super().__init__(parent)
+        self.setWindowTitle(f"Clean Text — {comment_id}")
+        self.setMinimumWidth(540)
+        self.setMinimumHeight(440)
+        self.resize(580, 500)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(14)
+
+        # ── Header ────────────────────────────────────────────────
+        title_lbl = QLabel("OCR Text Cleaning & Corrections")
+        title_lbl.setObjectName("CardHeader")
+        layout.addWidget(title_lbl)
+
+        cid_lbl = QLabel(f"Comment ID: {comment_id}")
+        cid_lbl.setObjectName("SubCaption")
+        layout.addWidget(cid_lbl)
+
+        # ── Original Text ─────────────────────────────────────────
+        orig_lbl = QLabel("Original Text:")
+        orig_lbl.setStyleSheet("font-weight: 600;")
+        layout.addWidget(orig_lbl)
+
+        self._orig_edit = QTextEdit()
+        self._orig_edit.setPlainText(original_text)
+        self._orig_edit.setReadOnly(True)
+        self._orig_edit.setMaximumHeight(70)
+        layout.addWidget(self._orig_edit)
+
+        # ── Cleaned Text ──────────────────────────────────────────
+        clean_lbl = QLabel("Cleaned Text (Editable):")
+        clean_lbl.setStyleSheet("font-weight: 600;")
+        layout.addWidget(clean_lbl)
+
+        self._clean_edit = QTextEdit()
+        self._clean_edit.setPlainText(cleaned_dto.cleaned_text)
+        self._clean_edit.setMaximumHeight(80)
+        layout.addWidget(self._clean_edit)
+
+        # ── Corrections List ──────────────────────────────────────
+        corr_count = len(cleaned_dto.corrections) if cleaned_dto.corrections else 0
+        corr_header = QLabel(f"Corrections Applied ({corr_count}):")
+        corr_header.setStyleSheet("font-weight: 600;")
+        layout.addWidget(corr_header)
+
+        corr_container = QFrame()
+        corr_container.setObjectName("Card")
+        corr_lay = QVBoxLayout(corr_container)
+        corr_lay.setContentsMargins(14, 12, 14, 12)
+        corr_lay.setSpacing(8)
+
+        if cleaned_dto.corrections:
+            for corr in cleaned_dto.corrections:
+                c_type = getattr(corr, "correction_type", "correction")
+                c_lbl = QLabel(
+                    f"• <b>{corr.original}</b> → <b>{corr.corrected}</b> "
+                    f"<i>({c_type})</i>"
+                )
+                c_lbl.setTextFormat(Qt.TextFormat.RichText)
+                c_lbl.setWordWrap(True)
+                corr_lay.addWidget(c_lbl)
+        else:
+            no_corr_lbl = QLabel("No corrections were necessary — text is already clean.")
+            no_corr_lbl.setStyleSheet("color: #A6A9B1; font-style: italic;")
+            corr_lay.addWidget(no_corr_lbl)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(corr_container)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setMaximumHeight(140)
+        layout.addWidget(scroll)
+
+        # ── Action Buttons ────────────────────────────────────────
+        btn_box = QHBoxLayout()
+        btn_box.setSpacing(12)
+        btn_box.addStretch()
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setObjectName("SecondaryBtn")
+        cancel_btn.setFixedHeight(36)
+        cancel_btn.clicked.connect(self.reject)
+        btn_box.addWidget(cancel_btn)
+
+        save_btn = QPushButton("Save to Comment")
+        save_btn.setObjectName("PrimaryBtn")
+        save_btn.setFixedHeight(36)
+        save_btn.clicked.connect(self.accept)
+        btn_box.addWidget(save_btn)
+
+        layout.addLayout(btn_box)
+
+    def get_cleaned_text(self) -> str:
+        """Return the (potentially user-edited) cleaned text."""
+        return self._clean_edit.toPlainText().strip()
+
 
 
 def _get(c: Union[Dict[str, Any], Any], field: str, default: Any = "") -> Any:
@@ -81,6 +196,13 @@ class OcrResultsPage(QWidget):
         filt.setFixedHeight(36)
         filt.setFixedWidth(160)
         tb.addWidget(filt)
+
+        clean_btn = QPushButton("✨ Clean Text")
+        clean_btn.setObjectName("PrimaryBtn")
+        clean_btn.setFixedHeight(36)
+        clean_btn.setToolTip("Run TextCleaningService and view corrections")
+        clean_btn.clicked.connect(self.clean_selected_comment)
+        tb.addWidget(clean_btn)
 
         export_btn = QPushButton("  ↑  Export")
         export_btn.setObjectName("SecondaryBtn")
@@ -229,7 +351,75 @@ class OcrResultsPage(QWidget):
             )
         model.appendRow([id_item, text_item, conf_item, status_item])
 
-    # ── Persistence slot ──────────────────────────────────────────
+    # ── Text Cleaning & Persistence slots ─────────────────────────
+
+    def clean_selected_comment(self) -> None:
+        """
+        Clean OCR text for the currently selected comment and display corrections dialog.
+        Saves cleaned text back to the database when confirmed by the user.
+        """
+        # Determine the selected row
+        selection = self._table.selectionModel().selectedRows()
+        if not selection:
+            current = self._table.currentIndex()
+            if current.isValid():
+                proxy_row = current.row()
+            elif self._model.rowCount() > 0:
+                proxy_row = 0
+            else:
+                QMessageBox.information(
+                    self,
+                    "Clean Text",
+                    "No comments available to clean.",
+                )
+                return
+        else:
+            proxy_row = selection[0].row()
+
+        source_idx = self._proxy.mapToSource(self._proxy.index(proxy_row, 0))
+        source_row = source_idx.row()
+
+        id_item = self._model.item(source_row, 0)
+        text_item = self._model.item(source_row, 1)
+        if not id_item or not text_item:
+            return
+
+        comment_id = id_item.text()
+        raw_text = text_item.text()
+
+        # Call text cleaning service via controller
+        if self._controller and hasattr(self._controller, "text_cleaning_service") and self._controller.text_cleaning_service:
+            cleaning_service = self._controller.text_cleaning_service
+        else:
+            cleaning_service = TextCleaningService()
+
+        cleaned_dto = cleaning_service.clean_text(raw_text)
+
+        dialog = CleanTextDialog(
+            comment_id=comment_id,
+            original_text=raw_text,
+            cleaned_dto=cleaned_dto,
+            parent=self,
+        )
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            new_text = dialog.get_cleaned_text()
+            # Update the table cell
+            text_item.setText(new_text)
+
+            # Persist to database via controller
+            if self._controller and hasattr(self._controller, "update_comment_text"):
+                if not comment_id.startswith("C-"):
+                    self._controller.update_comment_text(comment_id, new_text)
+
+            # Update local in-memory comment list
+            for c in self._comments:
+                if _get(c, "id") == comment_id:
+                    if isinstance(c, dict):
+                        c["ocr_text"] = new_text
+                    elif hasattr(c, "ocr_text"):
+                        setattr(c, "ocr_text", new_text)
+                    break
 
     def _on_text_edited(self, top_left, bottom_right, roles) -> None:
         """

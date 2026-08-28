@@ -6,6 +6,9 @@ Provides:
         Renders a simulated engineering drawing page with title block,
         grid lines, and comment bounding boxes.
 
+    draw_bounding_boxes(pixmap, comments=None) -> QPixmap
+        Draws semi-transparent bounding-box rectangles onto a QPixmap using QPainter.
+
     BBoxItem(QGraphicsRectItem)
         Hover-highlighted bounding-box overlay for an annotated comment
         on a QGraphicsScene canvas.
@@ -47,6 +50,71 @@ _BOX_COLORS: dict[str, tuple[str, float]] = {
     "Flagged":  ("#F87171", 0.30),
     "Rejected": ("#F87171", 0.20),
 }
+
+
+# ── Bounding box painter ───────────────────────────────────────────────────
+
+def draw_bounding_boxes(
+    pixmap: QPixmap,
+    comments: Optional[List[Any]] = None,
+) -> QPixmap:
+    """
+    Draw semi-transparent bounding box rectangles onto a QPixmap using QPainter.
+
+    Parameters
+    ----------
+    pixmap : QPixmap
+        The target pixmap to draw rectangles on.
+    comments : list, optional
+        List of comment objects or dicts with normalized 'bbox' coordinates (0..1).
+
+    Returns
+    -------
+    QPixmap
+        The pixmap with bounding boxes drawn.
+    """
+    if not comments:
+        return pixmap
+
+    p = QPainter(pixmap)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    width = pixmap.width()
+    height = pixmap.height()
+
+    for c in comments:
+        if isinstance(c, dict):
+            status = c.get("status", "Pending")
+            bbox   = c.get("bbox", (0, 0, 0, 0))
+            label  = c.get("label", "")
+        else:
+            status = getattr(c, "status", "Pending")
+            bbox   = getattr(c, "bbox", (0, 0, 0, 0))
+            label  = getattr(c, "label", "")
+
+        x     = int(bbox[0] * width)
+        y     = int(bbox[1] * height)
+        w     = int(bbox[2] * width)
+        h_box = int(bbox[3] * height)
+
+        if status in ("Flagged", "Rejected") or label == "redline":
+            color = QColor("#F87171")
+        elif status == "Approved":
+            color = QColor("#4ADE80")
+        else:
+            color = QColor("#FBBF24")
+
+        fill_color = QColor(color)
+        fill_color.setAlphaF(0.25)
+        p.setBrush(QBrush(fill_color))
+
+        border_color = QColor(color)
+        border_color.setAlphaF(0.9)
+        p.setPen(QPen(border_color, 1.5))
+
+        p.drawRect(x, y, w, h_box)
+
+    p.end()
+    return pixmap
 
 
 # ── Page pixmap factory ───────────────────────────────────────────────────────
@@ -119,25 +187,32 @@ def make_page_pixmap(
         if isinstance(c, dict):
             status = c.get("status", "Pending")
             bbox   = c.get("bbox", (0, 0, 0, 0))
+            label  = c.get("label", "")
         else:
-            status = c.status
-            bbox   = c.bbox
+            status = getattr(c, "status", "Pending")
+            bbox   = getattr(c, "bbox", (0, 0, 0, 0))
+            label  = getattr(c, "label", "")
 
         x     = int(bbox[0] * width)
         y     = int(bbox[1] * height)
         w     = int(bbox[2] * width)
         h_box = int(bbox[3] * height)
-        color = {
-            "Approved": QColor("#4ADE80"),
-            "Pending":  QColor("#FBBF24"),
-            "Flagged":  QColor("#F87171"),
-            "Rejected": QColor("#F87171"),
-        }.get(status, QColor("#3E9BFF"))
-        color.setAlphaF(0.25)
-        p.setBrush(color)
-        color2 = QColor(color)
-        color2.setAlphaF(0.9)
-        p.setPen(QPen(color2, 1.5))
+
+        if status in ("Flagged", "Rejected") or label == "redline":
+            color = QColor("#F87171")
+        elif status == "Approved":
+            color = QColor("#4ADE80")
+        else:
+            color = QColor("#FBBF24")
+
+        fill_color = QColor(color)
+        fill_color.setAlphaF(0.25)
+        p.setBrush(QBrush(fill_color))
+
+        border_color = QColor(color)
+        border_color.setAlphaF(0.9)
+        p.setPen(QPen(border_color, 1.5))
+
         p.drawRect(x, y, w, h_box)
 
     # Title block text

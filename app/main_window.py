@@ -105,8 +105,8 @@ class MainWindow(QMainWindow):
             OcrResultsPage(controller=self.controller),
             ClassificationPage(controller=self.controller),
             HumanReviewPage(controller=self.controller),
-            AnalyticsPage(),
-            ExportPage(),
+            AnalyticsPage(controller=self.controller),
+            ExportPage(controller=self.controller),
             SettingsPage(theme_manager=self._theme),
         ]
         for page in self._pages:

@@ -16,6 +16,8 @@ from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QColor, QPainter
 
+from typing import Any, Dict, List, Optional, Union
+
 try:
     from PySide6.QtCharts import (
         QChart, QChartView,
@@ -27,37 +29,11 @@ try:
 except ImportError:
     _HAS_CHARTS = False
 
-from app import mock_data as md
-
-# ARCHITECTURE WARNING:
-# The chart builder functions in this module (build_pareto_chart,
-# build_monthly_chart, build_category_pie) currently fetch data directly
-# from mock_data (md.PARETO_DATA, md.MONTHLY_COUNTS, md.CATEGORY_COUNTS).
-#
-# This couples presentation components to application mock data, which
-# conflicts with the database integration responsibility.
-#
-# When analytics_screen.py is connected to database aggregation queries
-# (Phase 8), BOTH this file AND analytics_screen.py must be updated.
-# Modifying only analytics_screen.py will have no visual effect because
-# chart builders still read from mock_data internally.
-#
-# RECOMMENDED DIRECTION:
-# Refactor chart builder functions to accept data as parameters, e.g.:
-#   build_pareto_chart(categories, counts, cumulative)
-#   build_monthly_chart(months, totals, approved)
-#   build_category_pie(category_counts: dict)
-# analytics_screen.py should fetch data from AppController and pass it in.
-#
-# The mock_data fallback can remain as default parameter values until
-# Phase 8 analytics integration is complete.
-#
-# See docs/AGENT_INTEGRATION_GUIDELINES.md WARNING-002 for full context.
-# This warning is for all development agents.
 
 __all__ = [
     "build_pareto_chart",
     "build_monthly_chart",
+    "build_status_trend_chart",
     "build_category_pie",
     "no_chart_label",
 ]
@@ -66,12 +42,18 @@ __all__ = [
 # ── Per-category accent colours ───────────────────────────────────────────────
 
 _CAT_COLORS: dict[str, str] = {
-    "Dimensional":   "#3E9BFF",
-    "Structural":    "#A78BFA",
-    "Electrical":    "#FBBF24",
-    "Material":      "#2DD4BF",
-    "Documentation": "#A6A9B1",
-    "Other":         "#94A3B8",
+    "Dimensional":              "#3E9BFF",
+    "Dimensional/Tolerancing":  "#3E9BFF",
+    "Structural":               "#A78BFA",
+    "Structural/Civil":         "#10B981",
+    "Electrical":               "#FBBF24",
+    "Electrical/Instrumentation":"#F59E0B",
+    "Material":                 "#2DD4BF",
+    "Safety/HSE":               "#EF4444",
+    "Documentation":            "#A6A9B1",
+    "General/Administrative":   "#6B7280",
+    "Uncategorized":            "#9CA3AF",
+    "Other":                    "#94A3B8",
 }
 
 
@@ -132,10 +114,18 @@ def no_chart_label(text: str) -> QFrame:
     return f
 
 
-def build_pareto_chart():
+def build_pareto_chart(
+    data: Optional[Union[List[Any], Dict[str, Any]]] = None
+) -> "QChartView | QFrame":
     """
     Build a Pareto chart: bar series for category counts with a
     cumulative-percentage line overlay.
+
+    Parameters
+    ----------
+    data:
+        Either a list of CategoryDistributionDTO objects, a list of dicts,
+        or a dict containing 'categories', 'counts', and optional 'cumulative' keys.
 
     Returns
     -------
@@ -148,19 +138,67 @@ def build_pareto_chart():
     chart = _styled_chart("Pareto — Comments by Category")
     chart.legend().hide()
 
-    cats   = md.PARETO_DATA["categories"]
-    counts = md.PARETO_DATA["counts"]
-    cumuls = md.PARETO_DATA["cumulative"]
+    cats: List[str] = []
+    counts: List[int] = []
+    cumuls: List[float] = []
+
+    if isinstance(data, list) and data:
+        for item in data:
+            c_name = (
+                getattr(item, "category_name", None)
+                or (item.get("category_name") if isinstance(item, dict) else str(item))
+            )
+            c_count = (
+                getattr(item, "count", 0)
+                if hasattr(item, "count")
+                else (item.get("count", 0) if isinstance(item, dict) else 0)
+            )
+            cats.append(str(c_name))
+            counts.append(int(c_count))
+
+        total = sum(counts)
+        running = 0.0
+        for c in counts:
+            running += c
+            cumuls.append((running / total * 100.0) if total > 0 else 0.0)
+
+    elif isinstance(data, dict) and data:
+        if "categories" in data and "counts" in data:
+            cats = [str(c) for c in data["categories"]]
+            counts = [int(v) for v in data["counts"]]
+            cumuls = [float(v) for v in data.get("cumulative", [])]
+            if not cumuls and sum(counts) > 0:
+                total = sum(counts)
+                running = 0.0
+                for c in counts:
+                    running += c
+                    cumuls.append(running / total * 100.0)
+        else:
+            for k, v in data.items():
+                cats.append(str(k))
+                counts.append(int(v))
+            total = sum(counts)
+            running = 0.0
+            for c in counts:
+                running += c
+                cumuls.append((running / total * 100.0) if total > 0 else 0.0)
+
+    if not cats or not counts or sum(counts) == 0:
+        cats = ["No Data"]
+        counts = [0]
+        cumuls = [0.0]
 
     bar_set = QBarSet("Count")
-    bar_set.setColor(QColor("#FFFFFF"))
-    bar_set.setBorderColor(QColor("#CCCCCC"))
+    bar_set.setColor(QColor("#3E9BFF"))
+    bar_set.setBorderColor(QColor("#60A5FA"))
     for v in counts:
         bar_set.append(v)
 
     bar_series = QBarSeries()
     bar_series.append(bar_set)
     chart.addSeries(bar_series)
+
+    max_count = max(counts) if max(counts) > 0 else 10
 
     line_series = QLineSeries()
     line_series.setName("Cumulative %")
@@ -169,7 +207,7 @@ def build_pareto_chart():
     pen.setWidth(2)
     line_series.setPen(pen)
     for i, pct in enumerate(cumuls):
-        line_series.append(i + 0.5, pct * max(counts) / 100)
+        line_series.append(i + 0.5, pct * max_count / 100.0)
     chart.addSeries(line_series)
 
     ax_cat = QBarCategoryAxis()
@@ -179,7 +217,7 @@ def build_pareto_chart():
     bar_series.attachAxis(ax_cat)
 
     ax_val = QValueAxis()
-    ax_val.setRange(0, max(counts) * 1.1)
+    ax_val.setRange(0, max_count * 1.15)
     ax_val.setLabelFormat("%d")
     _axis_style(ax_val)
     chart.addAxis(ax_val, Qt.AlignmentFlag.AlignLeft)
@@ -190,58 +228,173 @@ def build_pareto_chart():
     return _chart_view(chart)
 
 
-def build_monthly_chart():
+def build_monthly_chart(
+    data: Optional[Union[List[Any], Dict[str, Any]]] = None
+) -> "QChartView | QFrame":
     """
-    Build a monthly trend line chart (total comments vs approved).
+    Build a comment trend line chart.
+
+    Parameters
+    ----------
+    data:
+        Either a list of TrendDataPointDTO objects (period_label, count),
+        a dictionary with 'months', 'comments', 'approved' lists,
+        or a date/label to count dict.
 
     Returns
     -------
     QChartView | QFrame
     """
     if not _HAS_CHARTS:
-        return no_chart_label("Monthly Trend")
+        return no_chart_label("Comment Trend")
 
-    chart = _styled_chart("Monthly Comment Trend")
+    chart = _styled_chart("Comment Trend Over Time")
 
-    months   = md.MONTHLY_COUNTS["months"]
-    total    = md.MONTHLY_COUNTS["comments"]
-    approved = md.MONTHLY_COUNTS["approved"]
+    if isinstance(data, list) and data:
+        labels = [
+            getattr(d, "period_label", None)
+            or (d.get("period_label") if isinstance(d, dict) else str(d))
+            for d in data
+        ]
+        counts = [
+            getattr(d, "count", 0)
+            if hasattr(d, "count")
+            else (d.get("count", 0) if isinstance(d, dict) else 0)
+            for d in data
+        ]
 
-    for data, color, name in [
-        (total,    "#3E9BFF", "Total"),
-        (approved, "#4ADE80", "Approved"),
-    ]:
         series = QLineSeries()
-        series.setName(name)
-        series.setColor(QColor(color))
+        series.setName("Comments")
+        series.setColor(QColor("#3E9BFF"))
         pen = series.pen()
         pen.setWidth(2)
         series.setPen(pen)
-        for i, v in enumerate(data):
+        for i, v in enumerate(counts):
             series.append(i, v)
         chart.addSeries(series)
 
-    ax_cat = QBarCategoryAxis()
-    ax_cat.append(months)
-    _axis_style(ax_cat)
-    chart.addAxis(ax_cat, Qt.AlignmentFlag.AlignBottom)
+        max_val = max(counts) if counts and max(counts) > 0 else 10
 
-    ax_val = QValueAxis()
-    ax_val.setRange(0, max(total) * 1.15)
-    ax_val.setLabelFormat("%d")
-    _axis_style(ax_val)
-    chart.addAxis(ax_val, Qt.AlignmentFlag.AlignLeft)
+        ax_cat = QBarCategoryAxis()
+        ax_cat.append(labels if labels else ["No Data"])
+        _axis_style(ax_cat)
+        chart.addAxis(ax_cat, Qt.AlignmentFlag.AlignBottom)
 
-    for series in chart.series():
+        ax_val = QValueAxis()
+        ax_val.setRange(0, max_val * 1.15)
+        ax_val.setLabelFormat("%d")
+        _axis_style(ax_val)
+        chart.addAxis(ax_val, Qt.AlignmentFlag.AlignLeft)
+
+        series.attachAxis(ax_cat)
+        series.attachAxis(ax_val)
+
+    elif isinstance(data, dict) and data:
+        if "months" in data:
+            months = data.get("months", [])
+            total = data.get("comments", [])
+            approved = data.get("approved", [])
+
+            for s_data, color, name in [
+                (total,    "#3E9BFF", "Total"),
+                (approved, "#4ADE80", "Approved"),
+            ]:
+                if s_data:
+                    series = QLineSeries()
+                    series.setName(name)
+                    series.setColor(QColor(color))
+                    pen = series.pen()
+                    pen.setWidth(2)
+                    series.setPen(pen)
+                    for i, v in enumerate(s_data):
+                        series.append(i, v)
+                    chart.addSeries(series)
+
+            max_val = max(total) if total and max(total) > 0 else 10
+
+            ax_cat = QBarCategoryAxis()
+            ax_cat.append(months if months else ["No Data"])
+            _axis_style(ax_cat)
+            chart.addAxis(ax_cat, Qt.AlignmentFlag.AlignBottom)
+
+            ax_val = QValueAxis()
+            ax_val.setRange(0, max_val * 1.15)
+            ax_val.setLabelFormat("%d")
+            _axis_style(ax_val)
+            chart.addAxis(ax_val, Qt.AlignmentFlag.AlignLeft)
+
+            for s in chart.series():
+                s.attachAxis(ax_cat)
+                s.attachAxis(ax_val)
+        else:
+            labels = list(data.keys())
+            counts = [int(v) for v in data.values()]
+            series = QLineSeries()
+            series.setName("Comments")
+            series.setColor(QColor("#3E9BFF"))
+            pen = series.pen()
+            pen.setWidth(2)
+            series.setPen(pen)
+            for i, v in enumerate(counts):
+                series.append(i, v)
+            chart.addSeries(series)
+
+            max_val = max(counts) if counts and max(counts) > 0 else 10
+
+            ax_cat = QBarCategoryAxis()
+            ax_cat.append(labels if labels else ["No Data"])
+            _axis_style(ax_cat)
+            chart.addAxis(ax_cat, Qt.AlignmentFlag.AlignBottom)
+
+            ax_val = QValueAxis()
+            ax_val.setRange(0, max_val * 1.15)
+            ax_val.setLabelFormat("%d")
+            _axis_style(ax_val)
+            chart.addAxis(ax_val, Qt.AlignmentFlag.AlignLeft)
+
+            series.attachAxis(ax_cat)
+            series.attachAxis(ax_val)
+
+    else:
+        # Default / Empty state
+        labels = ["No Data"]
+        series = QLineSeries()
+        series.setName("Comments")
+        series.setColor(QColor("#3E9BFF"))
+        series.append(0, 0)
+        chart.addSeries(series)
+
+        ax_cat = QBarCategoryAxis()
+        ax_cat.append(labels)
+        _axis_style(ax_cat)
+        chart.addAxis(ax_cat, Qt.AlignmentFlag.AlignBottom)
+
+        ax_val = QValueAxis()
+        ax_val.setRange(0, 10)
+        ax_val.setLabelFormat("%d")
+        _axis_style(ax_val)
+        chart.addAxis(ax_val, Qt.AlignmentFlag.AlignLeft)
+
         series.attachAxis(ax_cat)
         series.attachAxis(ax_val)
 
     return _chart_view(chart)
 
 
-def build_category_pie():
+build_status_trend_chart = build_monthly_chart
+
+
+def build_category_pie(
+    data: Optional[Union[List[Any], Dict[str, Any]]] = None
+) -> "QChartView | QFrame":
     """
     Build a category distribution donut chart.
+
+    Parameters
+    ----------
+    data:
+        Either a list of CategoryDistributionDTO objects (category_name, count, color_hex),
+        or a dict mapping category name to count.
 
     Returns
     -------
@@ -255,10 +408,45 @@ def build_category_pie():
 
     series = QPieSeries()
     series.setHoleSize(0.45)   # donut style
-    for cat, count in md.CATEGORY_COUNTS.items():
-        slice_ = series.append(cat, count)
-        slice_.setColor(QColor(_CAT_COLORS.get(cat, "#A6A9B1")))
-        slice_.setLabelColor(QColor("#F2F3F5"))
+
+    has_slices = False
+
+    if isinstance(data, list) and data:
+        for item in data:
+            cat_name = (
+                getattr(item, "category_name", None)
+                or (item.get("category_name") if isinstance(item, dict) else str(item))
+            )
+            count = (
+                getattr(item, "count", 0)
+                if hasattr(item, "count")
+                else (item.get("count", 0) if isinstance(item, dict) else 0)
+            )
+            color = (
+                getattr(item, "color_hex", None)
+                or (item.get("color_hex") if isinstance(item, dict) else None)
+                or _CAT_COLORS.get(cat_name, "#A6A9B1")
+            )
+            if count > 0:
+                has_slices = True
+                slice_ = series.append(f"{cat_name} ({count})", count)
+                slice_.setColor(QColor(color))
+                slice_.setLabelColor(QColor("#F2F3F5"))
+                slice_.setLabelFont(QFont("Segoe UI", 10))
+
+    elif isinstance(data, dict) and data:
+        for cat, count in data.items():
+            if count > 0:
+                has_slices = True
+                slice_ = series.append(f"{cat} ({count})", count)
+                slice_.setColor(QColor(_CAT_COLORS.get(cat, "#A6A9B1")))
+                slice_.setLabelColor(QColor("#F2F3F5"))
+                slice_.setLabelFont(QFont("Segoe UI", 10))
+
+    if not has_slices:
+        slice_ = series.append("No Data", 1)
+        slice_.setColor(QColor("#4A4D55"))
+        slice_.setLabelColor(QColor("#A6A9B1"))
         slice_.setLabelFont(QFont("Segoe UI", 10))
 
     chart.addSeries(series)
