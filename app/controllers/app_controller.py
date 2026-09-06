@@ -54,6 +54,7 @@ from src.services.export_service import ExportService
 from src.services.verification_service import VerificationService
 from src.services.text_cleaning_service import TextCleaningService
 from src.services.classification_service import ClassificationService
+from src.services.annotation_service_enhanced import AnnotationDetectionServiceEnhanced
 from src.core.exceptions.auth_exceptions import InvalidCredentialsError
 from src.infrastructure.logging.logger import get_logger
 
@@ -241,18 +242,26 @@ class AppController(QObject):
 
         # Auth and workflow services that depend on db_engine
         self.auth_service    = AuthService(self.db_engine)
-        self.workflow_engine = ProcessingWorkflowEngine(
-            file_service=self.file_service,
-            pdf_service=self.pdf_service,
-            drawing_repo=self.drawing_repo,
-        )
-
+        
         # ── New Backend Services ──────────────────────────────────
         self.analytics_service      = AnalyticsService(self.db_engine)
         self.export_service         = ExportService(self.comment_repo, self.project_repo)
         self.verification_service   = VerificationService(self.comment_repo)
         self.text_cleaning_service  = TextCleaningService()
         self.classification_service = ClassificationService()
+
+        # ── Annotation Detection Service ──────────────────────────
+        self.annotation_service = AnnotationDetectionServiceEnhanced()
+        
+        self.workflow_engine = ProcessingWorkflowEngine(
+            file_service=self.file_service,
+            pdf_service=self.pdf_service,
+            drawing_repo=self.drawing_repo,
+            annotation_service=self.annotation_service,
+            comment_repo=self.comment_repo,
+            text_cleaning_service=self.text_cleaning_service,
+            classification_service=self.classification_service,
+        )
 
         # ── In-session state ──────────────────────────────────────
         self._active_doc: Optional[PDFDocumentDTO] = None
@@ -330,6 +339,7 @@ class AppController(QObject):
             if path.exists():
                 doc_dto = self.pdf_service.process_pdf_document(path)
                 self._active_doc = doc_dto
+                self._current_drawing_id = result_dto.drawing_id
                 self.document_loaded_signal.emit(doc_dto)
 
     # ── Authentication API ─────────────────────────────────────────
@@ -574,6 +584,7 @@ class AppController(QObject):
             "category":    db_dict.get("category_name") or "Uncategorized",
             "confidence":  db_dict.get("confidence", 0.0),
             "status":      db_dict.get("status", "Pending"),
+            "label":       db_dict.get("label", "comment_red"),
             "bbox":        normalised_bbox,
             "reviewer":    db_dict.get("user_id"),
             "timestamp":   db_dict.get("created_at", ""),

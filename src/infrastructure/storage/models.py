@@ -239,6 +239,7 @@ class CommentModel(Base):
     bbox_y0              = Column(Float,      nullable=False, default=0.0)
     bbox_x1              = Column(Float,      nullable=False, default=0.0)
     bbox_y1              = Column(Float,      nullable=False, default=0.0)
+    label                = Column(String(50), nullable=True, default="comment_red")
     is_verified_by_human = Column(Boolean,    nullable=False, default=False)
     created_at           = Column(DateTime,   nullable=False, default=datetime.utcnow)
     updated_at           = Column(DateTime,   nullable=False,

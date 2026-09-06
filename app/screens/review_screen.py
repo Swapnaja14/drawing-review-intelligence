@@ -33,12 +33,12 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame,
                                 QLabel, QPushButton, QTextEdit, QComboBox,
                                 QProgressBar, QSplitter, QSizePolicy,
                                 QGraphicsView, QGraphicsScene, QScrollArea)
-from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QFont, QPainter, QKeyEvent
+from PySide6.QtCore import Qt, QTimer, Signal, QRectF
+from PySide6.QtGui import QFont, QPainter, QKeyEvent, QPixmap
 
 from app import mock_data as md
 from app.components.chips import StatusChip, CategoryBadge
-from app.components.pdf_canvas import make_page_pixmap
+from app.components.pdf_canvas import make_page_pixmap, draw_bounding_boxes
 
 # Agreed status vocabulary — do not use any other values
 _VALID_STATUSES = ("Pending", "Approved", "Rejected", "Flagged")
@@ -61,19 +61,14 @@ class HumanReviewPage(QWidget):
         super().__init__(parent)
         self._controller = controller
 
-        # Load comments: prefer database, fall back to mock data
-        # INTEGRATION NOTE:
-        # Database comments are normalised dicts (from AppController.normalise_comment).
-        # Mock data items are dataclass objects.
-        # The _get() helper above handles both transparently.
-        # When the controller has a current_drawing_id, real comments are loaded.
-        # When the database is empty, the screen falls back to mock data so it
-        # remains usable during development.
+        # Load comments: prefer database, fall back to empty list when drawing is loaded
         if self._controller and self._controller.current_drawing_id:
             db_comments = self._controller.get_comments_for_drawing(
                 self._controller.current_drawing_id
             )
-            self._comments: List[Any] = db_comments if db_comments else list(md.COMMENTS)
+            self._comments: List[Any] = db_comments if db_comments else []
+        elif self._controller:
+            self._comments = []
         else:
             self._comments = list(md.COMMENTS)
 
@@ -128,15 +123,15 @@ class HumanReviewPage(QWidget):
             db_comments = self._controller.get_comments_for_drawing(
                 self._controller.current_drawing_id
             )
-            if db_comments:
-                self._comments = db_comments
-                self._idx = 0
-                self._statuses = {
-                    c["id"]: c["status"] for c in self._comments
-                }
-                self._prog_bar.setRange(0, len(self._comments))
-                self._load_canvas()
-                self._load_comment()
+            self._comments = db_comments if db_comments else []
+            self._idx = 0
+            self._statuses = {
+                c["id"]: c["status"] for c in self._comments
+            }
+            if hasattr(self, "_prog_bar"):
+                self._prog_bar.setRange(0, max(1, len(self._comments)))
+            self._load_canvas()
+            self._load_comment()
 
     # ── Panel builder ─────────────────────────────────────────────
 
@@ -320,8 +315,6 @@ class HumanReviewPage(QWidget):
 
     def _load_canvas(self) -> None:
         self._scene.clear()
-        # Pass current page's comments (normalised) so canvas uses same data
-        # as the comment panel. Falls back to mock bbox for mock data.
         page_comments = [
             c for c in self._comments
             if _get(c, "page", 1) == (
@@ -329,7 +322,23 @@ class HumanReviewPage(QWidget):
                 if self._comments else 1
             )
         ] if self._comments else []
-        self._scene.addPixmap(make_page_pixmap(640, 820, comments=page_comments))
+
+        if self._controller and self._controller.current_document:
+            try:
+                page_num = _get(self._comments[self._idx], "page", 1) if self._comments else 1
+                rendered_dto = self._controller.pdf_service.get_page_render(
+                    self._controller.current_document.file_path, page_num, dpi=150
+                )
+                pm = QPixmap()
+                pm.loadFromData(rendered_dto.image_bytes)
+                draw_bounding_boxes(pm, page_comments)
+            except Exception:
+                pm = make_page_pixmap(640, 820, comments=page_comments)
+        else:
+            pm = make_page_pixmap(640, 820, comments=page_comments)
+
+        self._scene.addPixmap(pm)
+        self._scene.setSceneRect(QRectF(pm.rect()))
 
     def _load_comment(self) -> None:
         if not self._comments:

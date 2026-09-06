@@ -40,7 +40,7 @@ from PySide6.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout, QFrame,
                                 QGraphicsView, QGraphicsScene,
                                 QSizePolicy)
 from PySide6.QtCore import Qt, QRectF, QSize
-from PySide6.QtGui import QFont, QPainter
+from PySide6.QtGui import QFont, QPainter, QPixmap, QPen, QBrush, QColor
 
 from app import mock_data as md
 from app.components.pdf_canvas import make_page_pixmap, BBoxItem
@@ -64,18 +64,14 @@ class CommentHighlightPage(QWidget):
         super().__init__(parent)
         self._controller = controller
 
-        # Load comments from DB or fall back to mock data
-        # INTEGRATION NOTE:
-        # DB comments are normalised dicts where bbox is already in
-        # (x_norm, y_norm, w_norm, h_norm) format (converted by
-        # AppController.normalise_comment() using page dimensions).
-        # Mock data bbox is (x, y, w, h) normalised 0–1 — same format.
-        # Both are rendered identically by _load_canvas().
+        # Load comments from DB or fall back to mock data if standalone
         if self._controller and self._controller.current_drawing_id:
             db_comments = self._controller.get_comments_for_drawing(
                 self._controller.current_drawing_id
             )
-            self._comments: List[Any] = db_comments if db_comments else list(md.COMMENTS)
+            self._comments: List[Any] = db_comments if db_comments else []
+        elif self._controller:
+            self._comments = []
         else:
             self._comments = list(md.COMMENTS)
 
@@ -114,9 +110,9 @@ class CommentHighlightPage(QWidget):
         )
         hdr_lay = QHBoxLayout(hdr)
         hdr_lay.setContentsMargins(16, 0, 16, 0)
-        count_lbl = QLabel(f"🔍  {len(self._comments)} comments found")
-        count_lbl.setFont(QFont("Segoe UI Variable", 14, QFont.Weight.DemiBold))
-        hdr_lay.addWidget(count_lbl)
+        self._count_lbl = QLabel(f"🔍  {len(self._comments)} comments found")
+        self._count_lbl.setFont(QFont("Segoe UI Variable", 14, QFont.Weight.DemiBold))
+        hdr_lay.addWidget(self._count_lbl)
         panel_lay.addWidget(hdr)
 
         # Comment list
@@ -140,45 +136,54 @@ class CommentHighlightPage(QWidget):
             db_comments = self._controller.get_comments_for_drawing(
                 self._controller.current_drawing_id
             )
-            if db_comments:
-                self._comments = db_comments
-                self._load_canvas()
-                self._populate_list()
+            self._comments = db_comments if db_comments else []
+            if hasattr(self, '_count_lbl'):
+                self._count_lbl.setText(f"🔍  {len(self._comments)} comments found")
+            self._load_canvas()
+            self._populate_list()
 
     # ── Canvas helpers ────────────────────────────────────────────
 
     def _load_canvas(self) -> None:
         """
-        Render the simulated drawing canvas with comment bounding boxes.
-
-        BOUNDING BOX NOTE:
-        Both DB (normalised by AppController) and mock comments use
-        (x_norm, y_norm, w_norm, h_norm) in range 0–1 at this point.
-        The canvas is 740×960 px. Absolute pixel positions are derived as:
-            x_px = bbox[0] * 740
-            y_px = bbox[1] * 960
-            w_px = bbox[2] * 740
-            h_px = bbox[3] * 960
+        Render the drawing canvas with comment bounding boxes.
         """
         self._scene.clear()
-        # Pass comments to make_page_pixmap so the background canvas shows
-        # the same bounding boxes as the comment list panel (same data source).
-        pm = make_page_pixmap(740, 960, comments=self._comments)
+
+        # Render real PDF page if available
+        if self._controller and self._controller.current_document:
+            try:
+                page_num = 1
+                if self._comments:
+                    page_num = _get(self._comments[0], "page", 1)
+                rendered_dto = self._controller.pdf_service.get_page_render(
+                    self._controller.current_document.file_path, page_num, dpi=150
+                )
+                pm = QPixmap()
+                pm.loadFromData(rendered_dto.image_bytes)
+            except Exception:
+                pm = make_page_pixmap(740, 960, comments=[])
+        else:
+            pm = make_page_pixmap(740, 960, comments=[])
+
         self._scene.addPixmap(pm)
+        self._scene.setSceneRect(QRectF(pm.rect()))
         self._box_items: dict = {}
+
+        width = pm.width()
+        height = pm.height()
 
         for c in self._comments:
             bbox   = _get(c, "bbox", (0, 0, 0, 0))
             cid    = _get(c, "id", "")
             status = _get(c, "status", "Pending")
 
-            x = bbox[0] * 740
-            y = bbox[1] * 960
-            w = bbox[2] * 740
-            h = bbox[3] * 960
+            x = bbox[0] * width
+            y = bbox[1] * height
+            w = bbox[2] * width
+            h = bbox[3] * height
 
             # BBoxItem expects an object with .id, .status, .ocr_text
-            # For DB dicts, wrap in a simple adapter object
             adapter = _CommentAdapter(c)
             item = BBoxItem(adapter, QRectF(x, y, w, h))
             self._scene.addItem(item)
@@ -286,10 +291,14 @@ class _CommentAdapter:
 
     def __init__(self, comment: Union[Dict[str, Any], Any]) -> None:
         if isinstance(comment, dict):
-            self.id       = comment.get("id", "")
-            self.status   = comment.get("status", "Pending")
-            self.ocr_text = comment.get("ocr_text", "")
+            self.id         = comment.get("id", "")
+            self.status     = comment.get("status", "Pending")
+            self.ocr_text   = comment.get("ocr_text", "")
+            self.label      = comment.get("label", "comment_red")
+            self.confidence = comment.get("confidence", 0.0)
         else:
-            self.id       = getattr(comment, "id", "")
-            self.status   = getattr(comment, "status", "Pending")
-            self.ocr_text = getattr(comment, "ocr_text", "")
+            self.id         = getattr(comment, "id", "")
+            self.status     = getattr(comment, "status", "Pending")
+            self.ocr_text   = getattr(comment, "ocr_text", "")
+            self.label      = getattr(comment, "label", "comment_red")
+            self.confidence = getattr(comment, "confidence", 0.0)

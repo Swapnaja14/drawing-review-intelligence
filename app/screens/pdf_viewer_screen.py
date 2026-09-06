@@ -18,7 +18,7 @@ from PySide6.QtGui import QPainter, QPixmap, QIcon
 
 from app import mock_data as md
 from app.components.pdf_toolbar    import PdfToolbar
-from app.components.pdf_canvas     import make_page_pixmap, draw_bounding_boxes
+from app.components.pdf_canvas     import make_page_pixmap, draw_bounding_boxes, draw_annotation_regions
 from app.components.metadata_panel import DrawingMetadataPanel
 from src.core.dtos.pdf_dtos import PDFDocumentDTO
 
@@ -32,6 +32,8 @@ class PdfViewerPage(QWidget):
         super().__init__(parent)
         self._controller = controller
         self._doc_dto: PDFDocumentDTO | None = None
+        self._annotation_result = None  # NEW: Store annotation detection result
+        self._show_annotations = False  # NEW: Toggle for annotation visualization
         self._zoom         = 1.0
         self._current_page = 1
         self._total_pages  = 1
@@ -49,6 +51,7 @@ class PdfViewerPage(QWidget):
         self._toolbar.prev_page_requested.connect(self._prev_page)
         self._toolbar.next_page_requested.connect(self._next_page)
         self._toolbar.page_changed.connect(self._goto_page)
+        self._toolbar.show_annotations_toggled.connect(self._toggle_annotations)  # NEW
         root.addWidget(self._toolbar)
 
         # ── Viewer split ──────────────────────────────────────────
@@ -87,6 +90,33 @@ class PdfViewerPage(QWidget):
         self._total_pages = doc_dto.total_pages
         self._current_page = 1
         
+        # Try to get annotation results from workflow if available
+        if self._controller and hasattr(self._controller, 'annotation_service'):
+            try:
+                print(f"Running annotation detection on {doc_dto.file_name}...")
+                # Run annotation detection on the PDF
+                # Use COLOR method WITHOUT template filtering for maximum coverage
+                # COLOR method works best for scanned drawings with colored annotations/markup
+                self._annotation_result = self._controller.annotation_service.detect_all_pages(
+                    doc_dto.file_path,
+                    method='hybrid',  # HYBRID finds native PDF markups, text blocks, and colored segmentation
+                    filter_template_regions=False  # DON'T filter - we want ALL detected regions
+                )
+                print(f"✓ Detected {self._annotation_result.total_regions} annotation regions across {self._annotation_result.total_pages} pages")
+                
+                # Show breakdown by page
+                for page_result in self._annotation_result.page_results:
+                    print(f"  Page {page_result.page_number + 1}: {len(page_result.regions)} regions")
+                
+            except Exception as e:
+                print(f"⚠ Could not run annotation detection: {e}")
+                import traceback
+                traceback.print_exc()
+                self._annotation_result = None
+        else:
+            print("⚠ Annotation service not available")
+            self._annotation_result = None
+        
         # Update toolbar page count
         self._toolbar.set_total_pages(self._total_pages)
         self._toolbar.set_current_page(1)
@@ -101,6 +131,15 @@ class PdfViewerPage(QWidget):
             ("Author", doc_dto.author or "CAD System"),
             ("File Digest", f"{doc_dto.file_hash_sha256[:12]}..."),
         ]
+        
+        # Add annotation count if available
+        if self._annotation_result:
+            fields.append(("Detected Regions", f"{self._annotation_result.total_regions} annotation boxes"))
+            fields.append(("Detection Method", "Color Segmentation (HSV)"))
+            fields.append(("Coverage", "All colored markup and annotations"))
+        else:
+            fields.append(("Detected Regions", "Click 🔍 to enable annotation detection"))
+        
         self._meta_panel.update_fields(fields)
 
         # Sync thumbnails & render page 1
@@ -124,9 +163,9 @@ class PdfViewerPage(QWidget):
             if db_comments:
                 all_comments = db_comments
             else:
-                all_comments = list(md.COMMENTS)
+                all_comments = []
         else:
-            all_comments = list(md.COMMENTS)
+            all_comments = []
 
         page_comments = []
         for c in all_comments:
@@ -137,7 +176,10 @@ class PdfViewerPage(QWidget):
 
     def _load_page(self, page_num: int) -> None:
         self._scene.clear()
+        
+        # Get page comments (for comment bounding boxes - yellow/green)
         page_comments = self._get_page_comments(page_num)
+        
         if self._doc_dto and self._controller:
             try:
                 # Render real page using PyMuPDF backend adapter
@@ -146,8 +188,37 @@ class PdfViewerPage(QWidget):
                 )
                 pm = QPixmap()
                 pm.loadFromData(rendered_dto.image_bytes)
-                draw_bounding_boxes(pm, page_comments)
+                
+                # ONLY draw comment bounding boxes if annotations toggle is OFF
+                # (comments are different from detected annotation regions)
+                if not self._show_annotations:
+                    draw_bounding_boxes(pm, page_comments)
+                
+                # Draw REAL annotation regions if toggle is ON
+                if self._show_annotations and self._annotation_result:
+                    # Get page dimensions from doc_dto
+                    page_idx = page_num - 1
+                    if 0 <= page_idx < len(self._doc_dto.pages):
+                        page_meta = self._doc_dto.pages[page_idx]
+                        page_width_pt = page_meta.width_pt
+                        page_height_pt = page_meta.height_pt
+                        
+                        # Get regions for this specific page
+                        page_regions = []
+                        for page_result in self._annotation_result.page_results:
+                            # Match by page number (0-based in annotation_result)
+                            if page_result.page_number == page_idx:
+                                page_regions = page_result.regions
+                                break
+                        
+                        if page_regions:
+                            print(f"Drawing {len(page_regions)} annotation regions on page {page_num}")
+                            draw_annotation_regions(pm, page_regions, page_width_pt, page_height_pt)
+                        else:
+                            print(f"No annotation regions found for page {page_num}")
+                
             except Exception as e:
+                print(f"Error loading page: {e}")
                 pm = make_page_pixmap(comments=page_comments)
         else:
             pm = make_page_pixmap(comments=page_comments)
@@ -198,6 +269,12 @@ class PdfViewerPage(QWidget):
         if self._thumb_strip.count() >= self._current_page:
             self._thumb_strip.setCurrentRow(self._current_page - 1)
         self._load_page(self._current_page)
+
+    def _toggle_annotations(self, enabled: bool) -> None:
+        """Toggle annotation region visualization on/off."""
+        self._show_annotations = enabled
+        self._load_page(self._current_page)  # Redraw current page
+        # Note: thumbnails not redrawn to avoid performance hit
 
     # ── Thumbnail strip ───────────────────────────────────────────
 

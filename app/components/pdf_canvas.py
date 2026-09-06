@@ -8,6 +8,9 @@ Provides:
 
     draw_bounding_boxes(pixmap, comments=None) -> QPixmap
         Draws semi-transparent bounding-box rectangles onto a QPixmap using QPainter.
+    
+    draw_annotation_regions(pixmap, annotation_regions, page_width_pt, page_height_pt) -> QPixmap
+        Draws detected annotation regions from annotation detection service.
 
     BBoxItem(QGraphicsRectItem)
         Hover-highlighted bounding-box overlay for an annotated comment
@@ -49,6 +52,32 @@ _BOX_COLORS: dict[str, tuple[str, float]] = {
     "Pending":  ("#FBBF24", 0.25),
     "Flagged":  ("#F87171", 0.30),
     "Rejected": ("#F87171", 0.20),
+}
+
+# Annotation region colors by detection method/label
+_ANNOTATION_COLORS: dict[str, tuple[str, float]] = {
+    # Redline and comment markups
+    "comment_red": ("#EF4444", 0.25),        # Red
+    "native_redline": ("#EF4444", 0.25),     # Red
+    "redline": ("#EF4444", 0.25),            # Red
+    "comment_yellow": ("#FBBF24", 0.20),     # Yellow
+    "comment_blue": ("#3B82F6", 0.25),       # Blue
+    "native_blue_markup": ("#3B82F6", 0.25), # Blue
+    "comment_green": ("#10B981", 0.20),      # Green
+    
+    # Native methods (high confidence)
+    "native_annotation": ("#3B82F6", 0.15),  # Blue
+    "native_text_block": ("#8B5CF6", 0.15),  # Purple
+    
+    # Detection methods (lower confidence)
+    "color_segment": ("#10B981", 0.15),      # Green
+    "connected_component": ("#F59E0B", 0.12),# Orange
+    "mser_region": ("#EC4899", 0.12),        # Pink
+    "edge_region": ("#06B6D4", 0.12),        # Cyan
+    "blob": ("#6366F1", 0.12),               # Indigo
+    
+    # Default
+    "default": ("#EF4444", 0.20),            # Red default for comment markup
 }
 
 
@@ -96,12 +125,18 @@ def draw_bounding_boxes(
         w     = int(bbox[2] * width)
         h_box = int(bbox[3] * height)
 
-        if status in ("Flagged", "Rejected") or label == "redline":
-            color = QColor("#F87171")
+        if "blue" in label.lower() or label in ("comment_blue", "native_blue_markup"):
+            color = QColor("#3B82F6")
+        elif "red" in label.lower() or label in ("redline", "comment_red", "native_redline") or status in ("Flagged", "Rejected"):
+            color = QColor("#EF4444")
         elif status == "Approved":
             color = QColor("#4ADE80")
-        else:
+        elif "yellow" in label.lower():
             color = QColor("#FBBF24")
+        elif "green" in label.lower():
+            color = QColor("#10B981")
+        else:
+            color = QColor("#EF4444")
 
         fill_color = QColor(color)
         fill_color.setAlphaF(0.25)
@@ -113,6 +148,126 @@ def draw_bounding_boxes(
 
         p.drawRect(x, y, w, h_box)
 
+    p.end()
+    return pixmap
+
+
+def draw_annotation_regions(
+    pixmap: QPixmap,
+    annotation_regions: Optional[List[Any]] = None,
+    page_width_pt: float = 612.0,
+    page_height_pt: float = 792.0,
+) -> QPixmap:
+    """
+    Draw detected annotation regions from annotation detection service.
+    
+    Parameters
+    ----------
+    pixmap : QPixmap
+        The target pixmap to draw rectangles on.
+    annotation_regions : list, optional
+        List of BoundingBoxDTO objects from annotation detection service.
+        Each region has: x0, y0, x1, y1 (PDF coordinates in points), 
+        confidence, and label.
+    page_width_pt : float
+        Original PDF page width in points (for coordinate conversion).
+    page_height_pt : float
+        Original PDF page height in points (for coordinate conversion).
+    
+    Returns
+    -------
+    QPixmap
+        The pixmap with annotation regions drawn.
+    
+    Notes
+    -----
+    Annotation regions use absolute PDF coordinates (x0, y0, x1, y1) in points.
+    These are converted to pixel coordinates based on the pixmap dimensions.
+    
+    Color coding by detection method:
+    - Blue: Native PDF annotations (high confidence)
+    - Purple: Text blocks
+    - Red: Redline markup
+    - Green: Color segmentation detections
+    - Orange: Connected components
+    - Others: Various detection methods
+    """
+    if not annotation_regions:
+        return pixmap
+    
+    p = QPainter(pixmap)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    
+    # Calculate scaling factors from PDF points to pixmap pixels
+    width_px = pixmap.width()
+    height_px = pixmap.height()
+    scale_x = width_px / page_width_pt if page_width_pt > 0 else 1.0
+    scale_y = height_px / page_height_pt if page_height_pt > 0 else 1.0
+    
+    for region in annotation_regions:
+        # Get region coordinates (PDF points)
+        if hasattr(region, 'x0'):
+            x0, y0, x1, y1 = region.x0, region.y0, region.x1, region.y1
+            confidence = getattr(region, 'confidence', 1.0)
+            label = getattr(region, 'label', 'default')
+        else:
+            # Fallback for dict format
+            x0 = region.get('x0', 0)
+            y0 = region.get('y0', 0)
+            x1 = region.get('x1', 0)
+            y1 = region.get('y1', 0)
+            confidence = region.get('confidence', 1.0)
+            label = region.get('label', 'default')
+        
+        # Convert PDF points to pixel coordinates
+        x_px = int(x0 * scale_x)
+        y_px = int(y0 * scale_y)
+        w_px = int((x1 - x0) * scale_x)
+        h_px = int((y1 - y0) * scale_y)
+        
+        # Skip invalid regions
+        if w_px <= 0 or h_px <= 0:
+            continue
+        
+        # Get color based on detection method/label
+        lbl_lower = str(label).lower()
+        if "blue" in lbl_lower:
+            color_hex, base_alpha = "#3B82F6", 0.25
+        elif "red" in lbl_lower:
+            color_hex, base_alpha = "#EF4444", 0.25
+        elif "yellow" in lbl_lower:
+            color_hex, base_alpha = "#FBBF24", 0.20
+        elif "green" in lbl_lower:
+            color_hex, base_alpha = "#10B981", 0.20
+        else:
+            color_hex, base_alpha = _ANNOTATION_COLORS.get(label, _ANNOTATION_COLORS.get(lbl_lower, _ANNOTATION_COLORS["default"]))
+
+        
+        # Adjust alpha based on confidence
+        # High confidence = more opaque, low confidence = more transparent
+        adjusted_alpha = base_alpha * (0.5 + 0.5 * confidence)
+        
+        # Draw filled rectangle
+        fill_color = QColor(color_hex)
+        fill_color.setAlphaF(adjusted_alpha)
+        p.setBrush(QBrush(fill_color))
+        
+        # Draw border (slightly more opaque)
+        border_color = QColor(color_hex)
+        border_width = 2.0 if confidence >= 0.8 else 1.0
+        border_color.setAlphaF(min(1.0, adjusted_alpha * 1.5))
+        p.setPen(QPen(border_color, border_width))
+        
+        p.drawRect(x_px, y_px, w_px, h_px)
+        
+        # Draw confidence score for low-confidence regions (helps debugging)
+        if confidence < 0.7:
+            p.setFont(QFont("Arial", 7))
+            text_color = QColor(color_hex)
+            text_color.setAlphaF(0.8)
+            p.setPen(QPen(text_color, 1))
+            p.drawText(x_px + 2, y_px + 10, f"{confidence:.0%}")
+    
     p.end()
     return pixmap
 
@@ -174,13 +329,10 @@ def make_page_pixmap(
         p.drawLine(x_off, 40, x_off, height - 120)
 
     # Comment bounding boxes
-    # ARCHITECTURE NOTE:
-    # comments=None falls back to md.COMMENTS[:5] for backward compatibility.
-    # When screens are integrated with the database, pass normalised display
-    # dicts (from AppController.normalise_comment()) so that the canvas
-    # and the comment list panel show the same data source.
+    # Real comments are passed as normalised display dicts (from AppController.normalise_comment()).
+    # If comments is None or empty, no dummy bounding boxes are drawn.
     # Normalised bbox format: (x_norm, y_norm, w_norm, h_norm) in range 0-1.
-    render_comments = comments if comments is not None else md.COMMENTS[:5]
+    render_comments = comments if comments is not None else []
 
     for c in render_comments:
         # Support both mock dataclass objects and normalised display dicts
@@ -198,12 +350,18 @@ def make_page_pixmap(
         w     = int(bbox[2] * width)
         h_box = int(bbox[3] * height)
 
-        if status in ("Flagged", "Rejected") or label == "redline":
-            color = QColor("#F87171")
+        if "blue" in label.lower() or label in ("comment_blue", "native_blue_markup"):
+            color = QColor("#3B82F6")
+        elif "red" in label.lower() or label in ("redline", "comment_red", "native_redline") or status in ("Flagged", "Rejected"):
+            color = QColor("#EF4444")
         elif status == "Approved":
             color = QColor("#4ADE80")
-        else:
+        elif "yellow" in label.lower():
             color = QColor("#FBBF24")
+        elif "green" in label.lower():
+            color = QColor("#10B981")
+        else:
+            color = QColor("#EF4444")
 
         fill_color = QColor(color)
         fill_color.setAlphaF(0.25)
@@ -256,16 +414,39 @@ class BBoxItem(QGraphicsRectItem):
         super().__init__(rect, parent)
         self.comment = comment
 
-        col_hex, alpha = _BOX_COLORS.get(comment.status, ("#3E9BFF", 0.25))
+        if isinstance(comment, dict):
+            label = comment.get('label', '')
+            status = comment.get('status', 'Pending')
+            ocr_text = comment.get('ocr_text', '')
+            cid = comment.get('id', '')
+        else:
+            label = getattr(comment, 'label', '')
+            status = getattr(comment, 'status', 'Pending')
+            ocr_text = getattr(comment, 'ocr_text', '')
+            cid = getattr(comment, 'id', '')
+
+        if "blue" in str(label).lower() or str(label) in ("comment_blue", "native_blue_markup"):
+            col_hex, alpha = ("#3B82F6", 0.25)
+        elif "red" in str(label).lower() or str(label) in ("redline", "comment_red", "native_redline") or status in ("Flagged", "Rejected"):
+            col_hex, alpha = ("#EF4444", 0.25)
+        elif status == "Approved":
+            col_hex, alpha = ("#4ADE80", 0.25)
+        elif "yellow" in str(label).lower():
+            col_hex, alpha = ("#FBBF24", 0.25)
+        elif "green" in str(label).lower():
+            col_hex, alpha = ("#10B981", 0.25)
+        else:
+            col_hex, alpha = _BOX_COLORS.get(status, ("#EF4444", 0.25))
+
         fill = QColor(col_hex)
         fill.setAlphaF(alpha)
         border = QColor(col_hex)
         border.setAlphaF(0.9)
 
-        self.setData(0, comment.id)
+        self.setData(0, cid)
         self.setBrush(QBrush(fill))
         self.setPen(QPen(border, 1.5))
-        self.setToolTip(f"{comment.id}: {comment.ocr_text[:60]}")
+        self.setToolTip(f"{cid}: {str(ocr_text)[:60]}")
         self.setAcceptHoverEvents(True)
 
     def hoverEnterEvent(self, e) -> None:

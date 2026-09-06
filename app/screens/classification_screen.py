@@ -68,29 +68,26 @@ class ClassificationPage(QWidget):
         super().__init__(parent)
         self._controller = controller
 
-        # Load category counts: prefer DB, fall back to mock
+        # Load category counts: prefer DB, fall back to empty
         if self._controller and self._controller.current_drawing_id:
             db_counts = self._controller.get_category_counts(
                 self._controller.current_drawing_id
             )
-            category_counts = db_counts if db_counts else md.CATEGORY_COUNTS
+            category_counts = db_counts if db_counts else {}
         elif self._controller:
-            # Controller present but no drawing loaded — show all-drawing counts
             db_counts = self._controller.get_category_counts()
-            category_counts = db_counts if db_counts else md.CATEGORY_COUNTS
+            category_counts = db_counts if db_counts else {}
         else:
             category_counts = md.CATEGORY_COUNTS
 
-        # Load comments: prefer DB, fall back to mock
-        # INTEGRATION NOTE:
-        # self._comments_data is the single source of truth for the table and
-        # the drawer. It is indexed by position (source model row) for the drawer.
-        # Do NOT use md.COMMENTS[row] — that breaks when filters are active.
+        # Load comments: prefer DB, fall back to mock only in standalone
         if self._controller and self._controller.current_drawing_id:
             db_comments = self._controller.get_comments_for_drawing(
                 self._controller.current_drawing_id
             )
-            self._comments_data: List[Any] = db_comments if db_comments else list(md.COMMENTS)
+            self._comments_data: List[Any] = db_comments if db_comments else []
+        elif self._controller:
+            self._comments_data = []
         else:
             self._comments_data = list(md.COMMENTS)
 
@@ -107,9 +104,13 @@ class ClassificationPage(QWidget):
         # Category summary cards
         cat_row = QHBoxLayout()
         cat_row.setSpacing(12)
-        for cat, count in category_counts.items():
+        self._cat_cards: Dict[str, CategorySummaryCard] = {}
+        display_cats = list(category_counts.keys()) if category_counts else list(md.CATEGORIES)
+        for cat in display_cats:
+            count = category_counts.get(cat, 0)
             icon_text, color = _CATEGORY_ICONS.get(cat, ("●", "#A6A9B1"))
             card = CategorySummaryCard(icon_text, count, cat, color)
+            self._cat_cards[cat] = card
             cat_row.addWidget(card, 1)
         root.addLayout(cat_row)
 
@@ -177,6 +178,31 @@ class ClassificationPage(QWidget):
         # ── Inspector drawer ──────────────────────────────────────
         self._drawer = InspectorDrawer("Comment Inspector")
         outer.addWidget(self._drawer)
+
+    def reload_comments(self) -> None:
+        """Reload comments and category counts from DB for the loaded drawing."""
+        if self._controller and self._controller.current_drawing_id:
+            db_comments = self._controller.get_comments_for_drawing(
+                self._controller.current_drawing_id
+            )
+            self._comments_data = db_comments if db_comments else []
+            db_counts = self._controller.get_category_counts(
+                self._controller.current_drawing_id
+            )
+            category_counts = db_counts if db_counts else {}
+        elif self._controller:
+            self._comments_data = []
+            category_counts = self._controller.get_category_counts() or {}
+        else:
+            self._comments_data = list(md.COMMENTS)
+            category_counts = md.CATEGORY_COUNTS
+
+        self._model = self._build_model()
+        self._proxy.setSourceModel(self._model)
+
+        if hasattr(self, "_cat_cards"):
+            for cat, card in self._cat_cards.items():
+                card.set_count(category_counts.get(cat, 0))
 
     # ── Model / drawer helpers ────────────────────────────────────
 

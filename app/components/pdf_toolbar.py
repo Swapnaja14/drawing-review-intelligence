@@ -38,6 +38,7 @@ class PdfToolbar(QFrame):
     prev_page_requested = Signal()
     next_page_requested = Signal()
     page_changed        = Signal(int)
+    show_annotations_toggled = Signal(bool)  # NEW: annotation visualization toggle
 
     def __init__(self, total_pages: int = 1, parent=None):
         super().__init__(parent)
@@ -78,6 +79,15 @@ class PdfToolbar(QFrame):
         rot_btn = make_toolbar_btn("↻", "Rotate")
         rot_btn.clicked.connect(self.rotate_requested)
         lay.addWidget(rot_btn)
+
+        lay.addWidget(ToolbarSeparator())
+
+        # ── Annotation toggle ─────────────────────────────────────
+        self._annot_btn = make_toolbar_btn("🔍", "Toggle Annotations")
+        self._annot_btn.setCheckable(True)
+        self._annot_btn.setChecked(False)  # Default: off
+        self._annot_btn.clicked.connect(lambda: self.show_annotations_toggled.emit(self._annot_btn.isChecked()))
+        lay.addWidget(self._annot_btn)
 
         lay.addWidget(ToolbarSeparator())
         lay.addStretch()
