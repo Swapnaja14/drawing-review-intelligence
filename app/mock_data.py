@@ -44,7 +44,21 @@ KPI = {
 
 # ── Comment / OCR records ─────────────────────────────────────────────────────
 
-CATEGORIES = ["Dimensional", "Structural", "Electrical", "Material", "Documentation", "Other"]
+CATEGORIES = [
+    "Technical",
+    "Drafting",
+    "Dimension",
+    "Cosmetic",
+    "Standards",
+    "Coordination",
+    "Documentation",
+    "Revision",
+    "Calculation",
+    "Feasibility",
+    "Material",
+    "Notes",
+    "BOM"
+]
 STATUSES   = ["Pending", "Approved", "Rejected", "Flagged"]
 
 @dataclass
@@ -62,26 +76,26 @@ class Comment:
     timestamp: str
 
 _raw_comments = [
-    ("C-0001","PRJ-001","UCC-E-101",1,"MIN WALL THICKNESS 6MM PER ASME B31.3 §304","Dimensional",0.97,"Approved",(0.12,0.23,0.28,0.04),"A. Mehta","2026-07-28 09:14"),
-    ("C-0002","PRJ-001","UCC-E-101",1,"SEE DETAIL B FOR NOZZLE SCHEDULE","Documentation",0.88,"Approved",(0.55,0.40,0.22,0.03),"A. Mehta","2026-07-28 09:18"),
-    ("C-0003","PRJ-001","UCC-E-102",2,"WELD TYPE E70XX SMAW ALL AROUND","Structural",0.76,"Pending",(0.08,0.61,0.30,0.04),None,"2026-07-28 10:02"),
-    ("C-0004","PRJ-001","UCC-E-103",1,"INSULATION: 50MM MINERAL WOOL","Material",0.92,"Approved",(0.42,0.18,0.25,0.03),"A. Mehta","2026-07-28 10:45"),
-    ("C-0005","PRJ-001","UCC-E-104",3,"CONDUIT TRAY 150×75 GI PERFORATED","Electrical",0.65,"Flagged",(0.20,0.55,0.35,0.04),None,"2026-07-28 11:23"),
-    ("C-0006","PRJ-001","UCC-E-104",3,"GROUNDING LUG 16MM² COPPER","Electrical",0.83,"Pending",(0.60,0.70,0.20,0.03),None,"2026-07-28 11:25"),
-    ("C-0007","PRJ-002","RU7-P-201",1,"PIPE SCHEDULE 80, GRADE A53","Material",0.91,"Approved",(0.15,0.30,0.28,0.04),"S. Nair","2026-07-25 14:10"),
-    ("C-0008","PRJ-002","RU7-P-201",2,"FLANGE RATING ANSI 150# RF","Dimensional",0.94,"Approved",(0.50,0.45,0.24,0.03),"S. Nair","2026-07-25 14:22"),
-    ("C-0009","PRJ-002","RU7-P-202",1,"TIE-IN POINT KP 12+450","Documentation",0.58,"Flagged",(0.08,0.72,0.32,0.04),None,"2026-07-25 15:05"),
-    ("C-0010","PRJ-002","RU7-P-203",4,"SUPPORT TYPE 'C' AT 3M INTERVALS","Structural",0.79,"Pending",(0.35,0.28,0.30,0.04),None,"2026-07-25 15:40"),
-    ("C-0011","PRJ-003","PL-N-301",1,"CATHODIC PROTECTION: IMPRESSED CURRENT","Electrical",0.96,"Approved",(0.10,0.20,0.35,0.04),"R. Kapoor","2026-07-10 08:55"),
-    ("C-0012","PRJ-003","PL-N-301",2,"COATING SYSTEM DFT 300µM EPOXY+PU","Material",0.89,"Approved",(0.48,0.55,0.28,0.03),"R. Kapoor","2026-07-10 09:10"),
-    ("C-0013","PRJ-003","PL-N-302",1,"HYDRO TEST PRESSURE 1.5× DESIGN","Structural",0.72,"Rejected",(0.18,0.65,0.26,0.04),"R. Kapoor","2026-07-10 09:45"),
-    ("C-0014","PRJ-004","CS-A-401",1,"ANCHOR BOLT 4× M30 GRADE 8.8","Dimensional",0.85,"Pending",(0.30,0.35,0.22,0.03),None,"2026-07-05 11:00"),
-    ("C-0015","PRJ-005","LNG-T-501",1,"CRYOGENIC INSULATION PERLITE FILL","Material",0.98,"Approved",(0.05,0.15,0.40,0.04),"V. Singh","2026-07-30 10:20"),
-    ("C-0016","PRJ-005","LNG-T-502",3,"EMERGENCY SHUT-OFF VALVE (ESDV)","Electrical",0.87,"Pending",(0.55,0.60,0.28,0.04),None,"2026-07-30 11:05"),
-    ("C-0017","PRJ-005","LNG-T-503",2,"BOIL-OFF GAS (BOG) RETURN LINE DN200","Dimensional",0.93,"Approved",(0.22,0.40,0.32,0.04),"V. Singh","2026-07-30 11:50"),
-    ("C-0018","PRJ-006","WT-F-601",1,"DOSING PUMP CAPACITY 120 L/H","Mechanical",0.70,"Flagged",(0.40,0.50,0.28,0.03),None,"2026-06-20 14:30"),
-    ("C-0019","PRJ-007","OP-M-701",1,"DECK PLATE 10MM A36 NON-SLIP SURFACE","Structural",0.81,"Pending",(0.12,0.42,0.35,0.04),None,"2026-07-29 09:00"),
-    ("C-0020","PRJ-007","OP-M-702",2,"HANDRAIL H=1100MM SS316L","Dimensional",0.88,"Approved",(0.50,0.30,0.25,0.03),"J. Sharma","2026-07-29 09:30"),
+    ("C-0001","PRJ-001","UCC-E-101",1,"INCORRECT MEMBER SIZE: UPGRADE W12X45 TO W14X68 FOR SPAN LOAD","Technical",0.97,"Approved",(0.12,0.23,0.28,0.04),"A. Mehta","2026-07-28 09:14"),
+    ("C-0002","PRJ-001","UCC-E-101",1,"TITLE BLOCK INCOMPLETE: PROJECT NUMBER AND DWG REVISION MISSING","Documentation",0.88,"Approved",(0.55,0.40,0.22,0.03),"A. Mehta","2026-07-28 09:18"),
+    ("C-0003","PRJ-001","UCC-E-102",2,"WRONG WELD CALLOUT: REPLACE FILLET WELD WITH MOMENT CONNECTION","Technical",0.76,"Pending",(0.08,0.61,0.30,0.04),None,"2026-07-28 10:02"),
+    ("C-0004","PRJ-001","UCC-E-103",1,"INCORRECT MATERIAL SPECIFIED: LINE REQUIRES SS316L INSTEAD OF CS","Material",0.92,"Approved",(0.42,0.18,0.25,0.03),"A. Mehta","2026-07-28 10:45"),
+    ("C-0005","PRJ-001","UCC-E-104",3,"CLASH WITH ELECTRICAL: CONDUIT BANK ROUTES THROUGH VALVE ENVELOPE","Coordination",0.65,"Flagged",(0.20,0.55,0.35,0.04),None,"2026-07-28 11:23"),
+    ("C-0006","PRJ-001","UCC-E-104",3,"REVISION CLOUD MISSING AROUND MODIFIED NOZZLE CONNECTION AT GRID 4","Revision",0.83,"Pending",(0.60,0.70,0.20,0.03),None,"2026-07-28 11:25"),
+    ("C-0007","PRJ-002","RU7-P-201",1,"BOM QUANTITY MISMATCH: DRAWING SHOWS 4 BRACKETS BUT BOM LISTS 2","BOM",0.91,"Approved",(0.15,0.30,0.28,0.04),"S. Nair","2026-07-25 14:10"),
+    ("C-0008","PRJ-002","RU7-P-201",2,"INCORRECT DIMENSION: OVERALL LENGTH 4500MM BUT SUM OF PARTS IS 4620MM","Dimension",0.94,"Approved",(0.50,0.45,0.24,0.03),"S. Nair","2026-07-25 14:22"),
+    ("C-0009","PRJ-002","RU7-P-202",1,"CODAL ISSUE: STAIR HANDRAIL HEIGHT 900MM DOES NOT MEET OSHA MIN 42IN","Standards",0.58,"Flagged",(0.08,0.72,0.32,0.04),None,"2026-07-25 15:05"),
+    ("C-0010","PRJ-002","RU7-P-203",4,"LINE OVERLAP OBSERVED BETWEEN DIMENSION LINE AND CENTERLINE","Drafting",0.79,"Pending",(0.35,0.28,0.30,0.04),None,"2026-07-25 15:40"),
+    ("C-0011","PRJ-003","PL-N-301",1,"DESIGN INCONSISTENCY: PRESSURE DROP CALCULATION DOES NOT MATCH P&ID","Calculation",0.96,"Approved",(0.10,0.20,0.35,0.04),"R. Kapoor","2026-07-10 08:55"),
+    ("C-0012","PRJ-003","PL-N-301",2,"MAINTENANCE ACCESSIBILITY: INSUFFICIENT CLEARANCE TO PULL TUBE BUNDLE","Feasibility",0.89,"Approved",(0.48,0.55,0.28,0.03),"R. Kapoor","2026-07-10 09:10"),
+    ("C-0013","PRJ-003","PL-N-302",1,"UPDATE GENERAL NOTE 4: FIELD VERIFICATION OF FOUNDATION IS MANDATORY","Notes",0.72,"Rejected",(0.18,0.65,0.26,0.04),"R. Kapoor","2026-07-10 09:45"),
+    ("C-0014","PRJ-004","CS-A-401",1,"TYPO ERROR IN TITLE: 'STRUCTRAL' SHOULD BE 'STRUCTURAL'","Cosmetic",0.85,"Pending",(0.30,0.35,0.22,0.03),None,"2026-07-05 11:00"),
+    ("C-0015","PRJ-005","LNG-T-501",1,"GASKET MATERIAL SPECIFIED IS INCOMPATIBLE: CHANGE TO SPIRAL WOUND","Material",0.98,"Approved",(0.05,0.15,0.40,0.04),"V. Singh","2026-07-30 10:20"),
+    ("C-0016","PRJ-005","LNG-T-502",3,"CLASH WITH PIPING: 6 INCH LINE CONFLICTS WITH CABLE TRAY AT GRID B","Coordination",0.87,"Pending",(0.55,0.60,0.28,0.04),None,"2026-07-30 11:05"),
+    ("C-0017","PRJ-005","LNG-T-503",2,"MISSING DIMENSION FROM COLUMN GRID TO PUMP CENTERLINE","Dimension",0.93,"Approved",(0.22,0.40,0.32,0.04),"V. Singh","2026-07-30 11:50"),
+    ("C-0018","PRJ-006","WT-F-601",1,"INCORRECT PART NUMBER IN BOM: CATALOG NUMBER DOES NOT MATCH VENDOR","BOM",0.70,"Flagged",(0.40,0.50,0.28,0.03),None,"2026-06-20 14:30"),
+    ("C-0019","PRJ-007","OP-M-701",1,"MISSING HIDDEN LINE FOR UNDERGROUND CONDUIT DUCT ON PLAN VIEW","Drafting",0.81,"Pending",(0.12,0.42,0.35,0.04),None,"2026-07-29 09:00"),
+    ("C-0020","PRJ-007","OP-M-702",2,"REVISION TABLE NOT UPDATED: ADD REV B DESCRIPTION INCORPORATED COMMENTS","Revision",0.88,"Approved",(0.50,0.30,0.25,0.03),"J. Sharma","2026-07-29 09:30"),
 ]
 
 COMMENTS: List[Comment] = [Comment(*r) for r in _raw_comments]
@@ -116,18 +130,25 @@ MONTHLY_COUNTS = {
 }
 
 CATEGORY_COUNTS = {
-    "Dimensional":   412,
-    "Structural":    318,
-    "Electrical":    287,
-    "Material":      241,
-    "Documentation": 198,
-    "Other":          97,
+    "Technical":     342,
+    "Dimension":     285,
+    "Drafting":      230,
+    "Coordination":  195,
+    "Standards":     180,
+    "BOM":           165,
+    "Material":      150,
+    "Revision":      140,
+    "Calculation":   115,
+    "Notes":         105,
+    "Documentation":  90,
+    "Feasibility":    85,
+    "Cosmetic":       65,
 }
 
 PARETO_DATA = {
-    "categories": ["Dimensional","Structural","Electrical","Material","Documentation","Other"],
-    "counts":     [412, 318, 287, 241, 198, 97],
-    "cumulative": [26.3, 46.6, 64.9, 80.3, 93.0, 100.0],
+    "categories": ["Technical", "Dimension", "Drafting", "Coordination", "Standards", "BOM", "Material", "Revision", "Calculation", "Notes", "Documentation", "Feasibility", "Cosmetic"],
+    "counts":     [342, 285, 230, 195, 180, 165, 150, 140, 115, 105, 90, 85, 65],
+    "cumulative": [15.9, 29.2, 39.9, 49.0, 57.4, 65.1, 72.1, 78.6, 83.9, 88.8, 93.0, 97.0, 100.0],
 }
 
 # ── Export history ────────────────────────────────────────────────────────────

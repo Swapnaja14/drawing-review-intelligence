@@ -1,0 +1,392 @@
+{
+  "overall": {
+    "accuracy": 1.0,
+    "macro_precision": 1.0,
+    "macro_recall": 1.0,
+    "macro_f1": 1.0,
+    "weighted_f1": 1.0,
+    "mean_confidence": 0.9485,
+    "median_confidence": 0.95,
+    "min_confidence": 0.6573,
+    "max_confidence": 0.96,
+    "test_sample_count": 494
+  },
+  "per_class": {
+    "Technical": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 38.0
+    },
+    "Drafting": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 38.0
+    },
+    "Dimension": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 38.0
+    },
+    "Cosmetic": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 38.0
+    },
+    "Standards": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 38.0
+    },
+    "Coordination": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 38.0
+    },
+    "Documentation": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 38.0
+    },
+    "Revision": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 38.0
+    },
+    "Calculation": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 38.0
+    },
+    "Feasibility": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 38.0
+    },
+    "Material": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 38.0
+    },
+    "Notes": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 38.0
+    },
+    "BOM": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 38.0
+    },
+    "accuracy": 1.0,
+    "macro avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 494.0
+    },
+    "weighted avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 494.0
+    }
+  },
+  "per_class_confidence": {
+    "Technical": 0.9466,
+    "Drafting": 0.9186,
+    "Dimension": 0.9486,
+    "Cosmetic": 0.9465,
+    "Standards": 0.9567,
+    "Coordination": 0.9491,
+    "Documentation": 0.9485,
+    "Revision": 0.9526,
+    "Calculation": 0.9552,
+    "Feasibility": 0.952,
+    "Material": 0.9582,
+    "Notes": 0.9507,
+    "BOM": 0.947
+  },
+  "confusion_matrix": [
+    [
+      38,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      38,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      38,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      38,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      38,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      38,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      38,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      38,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      38,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      38,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      38,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      38,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      38
+    ]
+  ],
+  "categories": [
+    "Technical",
+    "Drafting",
+    "Dimension",
+    "Cosmetic",
+    "Standards",
+    "Coordination",
+    "Documentation",
+    "Revision",
+    "Calculation",
+    "Feasibility",
+    "Material",
+    "Notes",
+    "BOM"
+  ],
+  "threshold_calibration": [
+    {
+      "threshold": 0.5,
+      "coverage_pct": 100.0,
+      "accuracy_above_threshold": 100.0,
+      "flagged_for_review_count": 0,
+      "flagged_for_review_pct": 0.0
+    },
+    {
+      "threshold": 0.6,
+      "coverage_pct": 100.0,
+      "accuracy_above_threshold": 100.0,
+      "flagged_for_review_count": 0,
+      "flagged_for_review_pct": 0.0
+    },
+    {
+      "threshold": 0.7,
+      "coverage_pct": 99.6,
+      "accuracy_above_threshold": 100.0,
+      "flagged_for_review_count": 2,
+      "flagged_for_review_pct": 0.4
+    },
+    {
+      "threshold": 0.75,
+      "coverage_pct": 99.6,
+      "accuracy_above_threshold": 100.0,
+      "flagged_for_review_count": 2,
+      "flagged_for_review_pct": 0.4
+    },
+    {
+      "threshold": 0.8,
+      "coverage_pct": 99.19,
+      "accuracy_above_threshold": 100.0,
+      "flagged_for_review_count": 4,
+      "flagged_for_review_pct": 0.81
+    },
+    {
+      "threshold": 0.85,
+      "coverage_pct": 99.19,
+      "accuracy_above_threshold": 100.0,
+      "flagged_for_review_count": 4,
+      "flagged_for_review_pct": 0.81
+    },
+    {
+      "threshold": 0.9,
+      "coverage_pct": 99.19,
+      "accuracy_above_threshold": 100.0,
+      "flagged_for_review_count": 4,
+      "flagged_for_review_pct": 0.81
+    },
+    {
+      "threshold": 0.95,
+      "coverage_pct": 50.4,
+      "accuracy_above_threshold": 100.0,
+      "flagged_for_review_count": 245,
+      "flagged_for_review_pct": 49.6
+    }
+  ]
+}

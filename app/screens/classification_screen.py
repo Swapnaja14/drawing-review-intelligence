@@ -41,11 +41,23 @@ from app.components.statistics_cards import CategorySummaryCard
 from app.components.search_bar import SearchBar
 
 _CATEGORY_ICONS = {
-    "Dimensional":   ("📐", "#3E9BFF"),
+    "Technical":     ("🔧", "#F87171"),
+    "Drafting":      ("📐", "#A78BFA"),
+    "Dimension":     ("📏", "#38BDF8"),
+    "Cosmetic":      ("🎨", "#F472B6"),
+    "Standards":     ("📋", "#FBBF24"),
+    "Coordination":  ("🔄", "#34D399"),
+    "Documentation": ("📄", "#94A3B8"),
+    "Revision":      ("🏷",  "#FB923C"),
+    "Calculation":   ("🔢", "#818CF8"),
+    "Feasibility":   ("🏗",  "#2DD4BF"),
+    "Material":      ("🧱", "#06B6D4"),
+    "Notes":         ("📝", "#A3E635"),
+    "BOM":           ("📦", "#C084FC"),
+    # Backwards compatibility
+    "Dimensional":   ("📏", "#38BDF8"),
     "Structural":    ("🏗",  "#A78BFA"),
     "Electrical":    ("⚡",  "#FBBF24"),
-    "Material":      ("🧱",  "#2DD4BF"),
-    "Documentation": ("📄",  "#A6A9B1"),
     "Other":         ("❓",  "#94A3B8"),
     "Mechanical":    ("⚙",   "#FB923C"),
 }

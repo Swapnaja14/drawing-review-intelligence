@@ -143,6 +143,15 @@ dataset/annotations/
 scratch/
 test_results/
 
+# Large Model Weights (exceeds GitHub 100MB file limit)
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+models/**/*.safetensors
+models/**/*.bin
+
 
 
 # Documentation builds

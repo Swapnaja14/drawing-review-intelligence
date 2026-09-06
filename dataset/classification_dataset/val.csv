@@ -1,0 +1,482 @@
+text,category_name,label
+UPDATE NOTE 8: SPECIFY PAINT AND PROTECTIVE COATING SYSTEM PER CLIENT SPECIFICATION -JCM,Notes,11
+WRONG WELD CALLOUT: REPLACE FILLET WELD WITH ALL-AROUND FILLET WELD ON MOMENT CONNECTION BY: BREKOL,Technical,0
+Structural beam material callout missing ASTM specification standard on drawing -JDM,Material,10
+Clash with piping: 6 inch CS line conflicts with electrical cable tray at grid E-4 -JJD,Coordination,5
+Dimension extension line detached from reference feature on plan view -JCM,Dimension,2
+Engineer and checker approval signatures and dates missing in sign-off block -RJY,Documentation,6
+ERECTION CLEARANCE: OVERHEAD CRANE HOOK CANNOT REACH PUMP FOR MAINTENANCE REMOVAL BY: VSM,Feasibility,9
+Clash with electrical: conduit bank routes directly through valve operating envelope By: BreKol,Coordination,5
+Verify missing setback dimension from property boundary line -JDM,Dimension,2
+TYPO ERROR: 'TEMPARATURE' SPELLED INCORRECTLY IN INSTRUMENT SCHEDULE -BEK,Cosmetic,3
+Vessel nozzle reinforcement pad area calculation insufficient for external piping moment -MWR,Calculation,8
+Codal compliance issue: aisle clearance width below NFPA minimum 36 inches By: VSM,Standards,4
+ADD NOTE: 'ALL SHARP EDGES AND BURRS MUST BE GROUND SMOOTH PRIOR TO PAINTING',Notes,11
+Revision symbol delta-2 missing near relocated drain valve -JDM,Revision,7
+Vessel nozzle reinforcement pad area calculation insufficient for external piping moment -JJD,Calculation,8
+WIND LOAD OVERTURNING MOMENT CALCULATION INCONSISTENT WITH ANCHOR BOLT SIZING,Calculation,8
+Grout material callout must specify non-shrink cementitious grout per project standard -MWR,Material,10
+Discrepancy in pipe diameter callout: 6 inch indicated on plan but 8 inch on elevation -RJY,Dimension,2
+Font thickness too heavy making small numerical tags illegible,Cosmetic,3
+Design calculation inconsistency: vessel wall thickness calculation requires 12mm not 10mm,Calculation,8
+Erection clearance: overhead crane hook cannot reach pump for maintenance removal,Feasibility,9
+Drawing status stamp missing: stamp 'ISSUED FOR CONSTRUCTION' before release -JJD,Documentation,6
+BOM quantity mismatch: drawing shows 4 support brackets but BOM lists quantity 2 -RJY,BOM,12
+Delta revision symbol missing on updated elevation callout -MWR,Revision,7
+Missing stiffener plate connection at high stress beam junction,Technical,0
+Wrong bolt grade specified on structural shear connection: specify A325 instead of standard bolts -MWR,Technical,0
+VALVE HANDWHEEL LOCATION UNREACHABLE FROM OPERATING PLATFORM: ADD CHAIN WHEEL OPERATOR,Feasibility,9
+Design calculation inconsistency: heat loss calculation requires 50mm insulation not 25mm,Calculation,8
+STANDARD ELECTRICAL GROUNDING SYMBOL MISSING AT TRANSFORMER NEUTRAL CONNECTION -JDM,Standards,4
+Client logo and project title missing from cover sheet title block,Documentation,6
+Add note: 'All sharp edges and burrs must be ground smooth prior to painting',Notes,11
+Dimension string does not close: 3450 mm discrepancy at wall interface,Dimension,2
+Flange bolting accessibility: clearance between flange and vessel wall too tight for torque wrench -JJD,Feasibility,9
+UPDATE NOTE 8: SPECIFY PAINT AND PROTECTIVE COATING SYSTEM PER CLIENT SPECIFICATION,Notes,11
+TRANSFORMER SIZING CALCULATION DOES NOT ACCOUNT FOR CONTINUOUS MOTOR STARTING KVA -UCC,Calculation,8
+Pipe insulation material specification missing on high temperature steam line -MWR,Material,10
+Add mandatory safety note: 'Do not energize equipment prior to interlock validation' -BEK,Notes,11
+"Tolerance callout +/- 1/16"" missing on overall skid length dimension",Dimension,2
+Pipe hanger support symbol non-compliant with MSS SP-58 standard -JCM,Standards,4
+CLASH WITH EQUIPMENT ACCESS: MOTOR REMOVAL PATH BLOCKED BY ADJACENT PROCESS LINE BY: VSM,Coordination,5
+Incorrect part number in BOM item 12: catalog number does not match manufacturer spec,BOM,12
+TITLE BLOCK INCOMPLETE: PROJECT NUMBER AND DRAWING REVISION LETTER MISSING -JCM,Documentation,6
+INCORRECT NOZZLE FLANGE CONNECTION RATING 900# ON VESSEL T-502,Technical,0
+INCORRECT PART NUMBER IN BOM ITEM 5: CATALOG NUMBER DOES NOT MATCH MANUFACTURER SPEC,BOM,12
+MATERIAL GRADE INCONSISTENCY: PIPE SCHEDULE SHOWS SS304 BUT FITTINGS SHOW CARBON STEEL,Material,10
+FLANGE MATERIAL MUST MATCH PIPE MATERIAL SPECIFICATION ASTM A105 FOR CS LINES -BEK,Material,10
+NON-STANDARD ABBREVIATION USED: REPLACE 'VLV' WITH STANDARD ABBREVIATION PER PROJECT CODE BY: BREKOL,Standards,4
+Machining finish symbol Ra 3.2 missing on shaft seal landing -RJY,Technical,0
+Dimension callout from survey monument datum is missing on plot plan,Dimension,2
+INCORRECT MEMBER SIZE FOR PURLIN P-10: UPGRADE HSS 6X6X3/8 TO W21X83 FOR SPAN LOAD -UCC,Technical,0
+Erection feasibility: provide temporary lifting lugs for modular frame transport By: VSM,Feasibility,9
+Line overlap observed between dimension extension line and centerline on grid B-3 -JJD,Drafting,1
+INCORRECT MEMBER SIZE FOR PURLIN P-10: UPGRADE C10X20 TO W21X83 FOR SPAN LOAD,Technical,0
+VERIFY STRUCTURAL CONNECTION CAPACITY: SHEAR TAB BOLT COUNT INSUFFICIENT -MWR,Technical,0
+WRONG VIEW ORIENTATION: DETAIL SHOWS LEFT ELEVATION INSTEAD OF RIGHT ELEVATION -JDM,Drafting,1
+Structural steel member designation format violates AISC standard naming,Standards,4
+Note reference error: detail refers to note 15 but notes list only goes up to note 11,Notes,11
+Missing radial clearance dimension around valve handwheel -JDM,Dimension,2
+BOM DESCRIPTION INCORRECT: ITEM 7 DESCRIPTION SAYS GATE VALVE BUT GRAPHIC SHOWS GLOBE VALVE,BOM,12
+Design inconsistency: pressure drop calculation does not match line sizing on P&ID,Calculation,8
+Relief valve sizing calculation sheet indicates orifice area 0.50 sq in but drawing shows 0.38 -JJD,Calculation,8
+COORDINATE WITH PIPING DEPARTMENT: VERIFY NOZZLE ORIENTATION MATCHES P&ID M-009,Coordination,5
+Material take-off MTO line item missing for pipe reducer on line 08-PL-104-CS,BOM,12
+MISSING CLIENT DRAWING REFERENCE NUMBER IN MASTER TITLE BLOCK -MWR,Documentation,6
+NOZZLE PROJECTION DIMENSION MISSING FROM VESSEL OUTER SHELL,Dimension,2
+PREVIOUS REVISION CLOUD REV A MUST BE REMOVED BEFORE ISSUING REV B,Revision,7
+TUBING MATERIAL CALLOUT INCORRECT: SPECIFY SEAMLESS 316SS INSTRUMENT TUBING,Material,10
+Electrical schematic symbols do not follow IEEE / IEC standard convention,Standards,4
+Maintenance accessibility: insufficient clearance to pull heat exchanger tube bundle -JCM,Feasibility,9
+Drawing index sheet list does not match actual sheets included in package,Documentation,6
+Fastener material callout incorrect: specify ASTM A193 Gr. B7 studs with 2H heavy hex nuts,Material,10
+Foundation pile load capacity inconsistent with geotechnical soil report calculation,Calculation,8
+FONT SIZE TOO SMALL ON VALVE TAG CALLOUTS: INCREASE TO STANDARD 2.5MM,Cosmetic,3
+Coordinate with piping department: verify nozzle orientation matches P&ID PID-54718,Coordination,5
+Coordinate instrument air supply line routing with control valve manifold -JCM,Coordination,5
+Note callout on sheet 1 contradicts note 6 on companion drawing S-70086-01-101,Notes,11
+Add environmental note regarding secondary containment dike drainage valve operation By: BreKol,Notes,11
+Pump maintenance feasibility: motor cannot be removed without dismantling overhead piping By: BreKol,Feasibility,9
+ENGINEER AND CHECKER APPROVAL SIGNATURES AND DATES MISSING IN SIGN-OFF BLOCK -UCC,Documentation,6
+Note reference error: detail refers to note 15 but notes list only goes up to note 11,Notes,11
+Design calculation inconsistency: vessel wall thickness calculation requires 12mm not 10mm,Calculation,8
+Design calculation inconsistency: vessel wall thickness calculation requires 12mm not 10mm -JJD,Calculation,8
+DIMENSION CALLOUT FROM SURVEY MONUMENT DATUM IS MISSING ON PLOT PLAN,Dimension,2
+Spelling mistake in coating spec note: 'galvanise' should be 'galvanized' By: BreKol,Cosmetic,3
+Non-standard abbreviation used: replace 'VLV' with standard abbreviation per project code,Standards,4
+Note discrepancy: note states galvanize all steel but detail indicates painted finish,Notes,11
+Multiple revisions mixed on sheet: clear Rev 1 clouds and keep only Rev 2 changes,Revision,7
+STANDARD COMPLIANCE: INSTRUMENTATION TAG FORMAT DOES NOT FOLLOW ISA-5.1 NAMING RULE,Standards,4
+DRAWING STATUS STAMP MISSING: STAMP 'ISSUED FOR CONSTRUCTION' BEFORE RELEASE,Documentation,6
+INTER-DISCIPLINE CLASH: PIPE SUPPORT BRACKET INTERFERES WITH INSTRUMENT JUNCTION BOX JB-204,Coordination,5
+Accessibility issue: transmitter display not readable from operating floor -BEK,Feasibility,9
+Interference between crane hook travel envelope and lighting fixture layout,Coordination,5
+ECN no missing on revised gusset plate detail -RJY,Technical,0
+Grout material callout must specify non-shrink cementitious grout per project standard By: VSM,Material,10
+MISSING CONNECTION DETAIL AT COLUMN B-08 AND BEAM W16X57 INTERSECTION -UCC,Technical,0
+Safety relief valve symbol does not comply with API 526 standard representation,Standards,4
+Incorrect distance between anchor bolt centers on foundation template,Dimension,2
+TEXT OVERLAPPING DIMENSION LEADER ARROW: ADJUST TEXT BOX POSITION,Cosmetic,3
+Flow rate calculation discrepancy between PFD heat & material balance and line schedule -MWR,Calculation,8
+Design calculation inconsistency: vessel wall thickness calculation requires 12mm not 10mm,Calculation,8
+Line overlap observed between dimension extension line and centerline on grid C-5 -JJD,Drafting,1
+MATERIAL SPECIFICATION DISCREPANCY BETWEEN PIPING LINE LIST AND ISOMETRIC DRAWING BY: VSM,Material,10
+Interference between flare header expansion loop and existing pipe rack column By: VSM,Coordination,5
+"Tolerance callout +/- 1/16"" missing on overall skid length dimension By: VSM",Dimension,2
+Fastener material callout incorrect: specify ASTM A193 Gr. B7 studs with 2H heavy hex nuts,Material,10
+Incorrect manufacturer name listed in bill of materials for motor starter unit -RJY,BOM,12
+NOTE DISCREPANCY: NOTE STATES GALVANIZE ALL STEEL BUT DETAIL INDICATES PAINTED FINISH,Notes,11
+Calculation error: thermal expansion stress exceeds allowable code stress on line 08-PL-104-CS,Calculation,8
+MACHINING SYMBOL MISSING ON FLANGE MATING FACE SURFACE FINISH REQUIREMENT,Technical,0
+Piping and structural clash: pipe flange hits bottom flange of W12 beam -JCM,Coordination,5
+Font size too small on valve tag callouts: increase to standard 2.5mm,Cosmetic,3
+Incorrect manufacturer name listed in bill of materials for motor starter unit -UCC,BOM,12
+Hazardous area classification boundary symbol missing per NFPA 497 standard,Standards,4
+TEXT JUSTIFICATION MISALIGNED IN EQUIPMENT TABLE COLUMN,Cosmetic,3
+Missing vertical clearance dimension below overhead monorail beam,Dimension,2
+Detail bubble Detail 12 missing sheet cross-reference on elevation view -JJD,Drafting,1
+Drafting view mismatch: isometric view shows valve that is omitted on plan view By: VSM,Drafting,1
+MISSING REVISION CLOUD ON BILL OF MATERIALS ROW 4 MODIFIED QUANTITY BY: VSM,Revision,7
+Inter-discipline interference: structural diagonal bracing blocks instrument transmitter display -RJY,Coordination,5
+Revision cloud missing around modified nozzle connection at grid C-5,Revision,7
+Machining symbol missing on flange mating face surface finish requirement,Technical,0
+Project work order number missing in document control block,Documentation,6
+BOM PART NUMBER TYPO: REPLACE VENDOR CODE XYZ-100 WITH XYZ-200 -JCM,BOM,12
+Maintenance feasibility: filter basket cannot be removed without disconnecting piping -JCM,Feasibility,9
+FASTENER MATERIAL CALLOUT INCORRECT: SPECIFY ASTM A193 GR. B7 STUDS WITH 2H HEAVY HEX NUTS -JJD,Material,10
+Sheet number indicates sheet 2 of 4 but total drawing set has 5 sheets -JDM,Documentation,6
+Emergency exit signage symbol not per ISO 7010 safety sign standard -BEK,Standards,4
+Field assembly feasibility: provide bolted splice instead of field full-penetration weld,Feasibility,9
+Font size too small on valve tag callouts: increase to standard 2.5mm -JDM,Cosmetic,3
+Electrical schematic symbols do not follow IEEE / IEC standard convention -JJD,Standards,4
+CORROSION ALLOWANCE MATERIAL BUFFER OMITTED IN WALL THICKNESS SPECIFICATION -JDM,Material,10
+Emergency exit signage symbol not per ISO 7010 safety sign standard -UCC,Standards,4
+Material specification required for cable tray: hot-dip galvanized steel vs aluminum -JJD,Material,10
+Add mandatory safety note: 'Do not energize equipment prior to interlock validation',Notes,11
+Title block scale box shows 'NTS' but drawing is plotted to scale 1:50,Documentation,6
+Part number in bill of materials table does not match vendor certified cut sheet By: VSM,BOM,12
+Arrowhead missing on section cut callout marker -BEK,Drafting,1
+ARROWHEAD MISSING ON SECTION CUT CALLOUT MARKER,Drafting,1
+"Fabrication issue: minimum bend radius on 1/2"" structural plate will cause cracking",Feasibility,9
+Missing sheet reference callout: 'See companion sheet C-54718-31-002 for continuation' -JDM,Documentation,6
+Missing revision cloud on bill of materials row 4 modified quantity -MWR,Revision,7
+Standard compliance: instrumentation tag format does not follow ISA-5.1 naming rule -JCM,Standards,4
+Relief valve sizing calculation sheet indicates orifice area 0.50 sq in but drawing shows 0.38,Calculation,8
+Rigging and lifting lug placement causes center of gravity tilt during erection -RJY,Feasibility,9
+PIPE SCHEDULE STANDARD CALLOUT NON-COMPLIANT WITH ASME B36.10M -RJY,Standards,4
+Project work order number missing in document control block,Documentation,6
+TEXT OVERLAPPING DIMENSION LEADER ARROW: ADJUST TEXT BOX POSITION,Cosmetic,3
+COSMETIC CLEANUP: REMOVE STRAY CAD DOTS AND UNREFERENCED TEXT FRAGMENTS -JDM,Cosmetic,3
+FABRICATION FEASIBILITY: TIGHT PIPE SPOOL GEOMETRY CANNOT BE HOT-DIP GALVANIZED WITHOUT POOLING -BEK,Feasibility,9
+MISSING HIDDEN LINE FOR UNDERGROUND CONDUIT DUCT BANK ON PLAN VIEW -JDM,Drafting,1
+Add environmental note regarding secondary containment dike drainage valve operation,Notes,11
+Calculation error: thermal expansion stress exceeds allowable code stress on line 174005-S12-04-P08 -BEK,Calculation,8
+RIGGING AND LIFTING LUG PLACEMENT CAUSES CENTER OF GRAVITY TILT DURING ERECTION,Feasibility,9
+Drafting view mismatch: isometric view shows valve that is omitted on plan view,Drafting,1
+Valve operation feasibility: hand lever hits structural column when opening valve By: VSM,Feasibility,9
+Revision block shows Rev 0 date but drawing contains Rev 1 markups -BEK,Revision,7
+Wind load overturning moment calculation inconsistent with anchor bolt sizing -JDM,Calculation,8
+Valve handwheel location unreachable from operating platform: add chain wheel operator,Feasibility,9
+Revision cloud drawn with wrong line weight: must follow revision standard style,Revision,7
+Material take-off MTO line item missing for pipe reducer on line 174005-S12-04-P08,BOM,12
+COORDINATE HVAC SUPPLY REGISTER LOCATION WITH OVERHEAD CABLE TRAY RUN,Coordination,5
+FIELD WELD ACCESSIBILITY: JOINT LOCATED INSIDE ENCLOSED BOX BEAM CANNOT BE INSPECTED -JJD,Feasibility,9
+Clash with electrical: conduit bank routes directly through valve operating envelope,Coordination,5
+INCORRECT MANUFACTURER NAME LISTED IN BILL OF MATERIALS FOR MOTOR STARTER UNIT -MWR,BOM,12
+COORDINATE ELECTRICAL POWER FEED ROUTING WITH UNDERGROUND DRAINAGE PIPING,Coordination,5
+DRAWING CROSS-REFERENCE INDEX TABLE INCOMPLETE ON COVER SHEET,Documentation,6
+Coordinate with mechanical: equipment nozzle loads exceed allowable piping interface limits -UCC,Coordination,5
+Interference between crane hook travel envelope and lighting fixture layout -JJD,Coordination,5
+Update note 8: specify paint and protective coating system per client specification -JDM,Notes,11
+DRAWING CROSS-REFERENCE INDEX TABLE INCOMPLETE ON COVER SHEET BY: VSM,Documentation,6
+Pipe hanger support symbol non-compliant with MSS SP-58 standard -MWR,Standards,4
+Font thickness too heavy making small numerical tags illegible,Cosmetic,3
+Piping and structural clash: pipe flange hits bottom flange of W12 beam,Coordination,5
+Material specification discrepancy between piping line list and isometric drawing,Material,10
+TEXT CALLOUT ROTATED AT ODD ANGLE: ALIGN HORIZONTALLY FOR READABILITY,Cosmetic,3
+SECTION CUT SYMBOL ON SHEET 1 POINTS IN WRONG VIEWING DIRECTION -MWR,Drafting,1
+Piping and structural clash: pipe flange hits bottom flange of W12 beam -RJY,Coordination,5
+ADD GENERAL NOTE SPECIFYING CONCRETE MINIMUM 28-DAY COMPRESSIVE STRENGTH 4000 PSI -RJY,Notes,11
+MATERIAL CALLOUT FOR BASEPLATE SHOWS MILD STEEL: REVISE TO ASTM A572 GR 50,Material,10
+Drawing title does not match master document register index,Documentation,6
+REVISE NOTE 1 TO REFERENCE THE LATEST GEOTECHNICAL SITE INVESTIGATION REPORT -RJY,Notes,11
+Clash with equipment access: motor removal path blocked by adjacent process line,Coordination,5
+Incomplete documentation: missing reference standard specification document number,Documentation,6
+Inconsistent capitalization in equipment callouts: use all uppercase,Cosmetic,3
+ERECTION CLEARANCE: OVERHEAD CRANE HOOK CANNOT REACH PUMP FOR MAINTENANCE REMOVAL -JDM,Feasibility,9
+Text justification misaligned in equipment table column By: BreKol,Cosmetic,3
+ISOMETRIC DRAWING VIEW ORIENTATION MISALIGNED WITH PLAN COORDINATES -JDM,Drafting,1
+Missing hidden line for underground conduit duct bank on plan view,Drafting,1
+FLOW RATE CALCULATION DISCREPANCY BETWEEN PFD HEAT & MATERIAL BALANCE AND LINE SCHEDULE -RJY,Calculation,8
+Missing engineer of record professional seal and signature in title block,Documentation,6
+Cable voltage drop calculation exceeds 3% allowable limit for 480V feeder,Calculation,8
+Structural steel member designation format violates AISC standard naming,Standards,4
+Typo in general note: 'valvue' should read 'valve' -JCM,Cosmetic,3
+INCORRECT PART NUMBER IN BOM ITEM 5: CATALOG NUMBER DOES NOT MATCH MANUFACTURER SPEC,BOM,12
+OVERLAPPING TEXT AND LEADER LINES OBSCURING NOZZLE CALLOUT ON P-204A/B -MWR,Drafting,1
+MISSING SHEET REFERENCE CALLOUT: 'SEE COMPANION SHEET M-70086-01-004 FOR CONTINUATION' BY: BREKOL,Documentation,6
+Revise note 1 to reference the latest geotechnical site investigation report,Notes,11
+REVISION CLOUD MISSING AROUND MODIFIED NOZZLE CONNECTION AT GRID C-5,Revision,7
+BOM TABLE COLUMN FOR MATERIAL GRADE IS BLANK FOR ITEMS 3 THROUGH 8,BOM,12
+UPDATE NOTES: ADD NOTE REGARDING POST-WELD HEAT TREATMENT PWHT REQUIREMENT -JJD,Notes,11
+INCORRECT PIPE SCHEDULE XXS SPECIFIED FOR DESIGN PRESSURE 600 PSI -MWR,Technical,0
+Dimension extension line detached from reference feature on plan view,Dimension,2
+PUMP MAINTENANCE FEASIBILITY: MOTOR CANNOT BE REMOVED WITHOUT DISMANTLING OVERHEAD PIPING,Feasibility,9
+REVISION CLOUD MISSING AROUND MODIFIED NOZZLE CONNECTION AT GRID C-5 BY: BREKOL,Revision,7
+EMERGENCY EXIT SIGNAGE SYMBOL NOT PER ISO 7010 SAFETY SIGN STANDARD BY: VSM,Standards,4
+Safety relief valve symbol does not comply with API 526 standard representation -MWR,Standards,4
+MISSING REFERENCE DRAWING NUMBERS FOR ELECTRICAL TIE-IN IN DOCUMENTATION BLOCK -JCM,Documentation,6
+TITLE BLOCK INCOMPLETE: PROJECT NUMBER AND DRAWING REVISION LETTER MISSING,Documentation,6
+Update bill of materials BOM to reflect latest revision of piping component schedule By: VSM,BOM,12
+Hazardous area classification boundary symbol missing per NFPA 497 standard -RJY,Standards,4
+Emergency exit signage symbol not per ISO 7010 safety sign standard,Standards,4
+INCORRECT PART NUMBER IN BOM ITEM 3: CATALOG NUMBER DOES NOT MATCH MANUFACTURER SPEC -JJD,BOM,12
+Material grade mismatch: structural plates show ASTM A36 instead of high-strength A992 -JDM,Material,10
+Material specification required for cable tray: hot-dip galvanized steel vs aluminum,Material,10
+MISSING ITEM TAG NUMBER IN BOM SCHEDULE COLUMN FOR TEMPERATURE TRANSMITTER BY: BREKOL,BOM,12
+Design inconsistency: pressure drop calculation does not match line sizing on P&ID -UCC,Calculation,8
+"WRONG WELD CALLOUT: REPLACE FILLET WELD WITH 3/8"" FILLET WELD WITH BACKING BAR ON MOMENT CONNECTION",Technical,0
+REVISION ISSUE STATUS CHANGED FROM IFD TO IFC BUT REVISION TABLE NOT UPDATED -JDM,Revision,7
+Wrong valve body material: specify 316L stainless steel for acid injection line,Material,10
+Update bill of materials BOM to reflect latest revision of piping component schedule -UCC,BOM,12
+CENTER-TO-CENTER DIMENSION BETWEEN NOZZLES N1 AND N2 IS MISSING -JDM,Dimension,2
+Add environmental note regarding secondary containment dike drainage valve operation,Notes,11
+Wrong valve body material: specify 316L stainless steel for acid injection line,Material,10
+"Incorrect dimension: overall length shows 150 mm but sum of segment callouts is 8'-4 1/2""",Dimension,2
+Geometric tolerancing GD&T frame symbol missing datum reference per ASME Y14.5,Standards,4
+Standard electrical grounding symbol missing at transformer neutral connection,Standards,4
+MTO DISCREPANCY: STRUCTURAL FRAMING SCHEDULE OMITTED W10X49 BEAM MATERIAL TAKE-OFF,BOM,12
+UPDATE GENERAL NOTE 12 REGARDING TORQUE REQUIREMENTS FOR STRUCTURAL HIGH-STRENGTH BOLTS,Notes,11
+Wrong weld symbol: field weld flag indicated instead of shop weld,Technical,0
+DESIGN CALCULATION INCONSISTENCY: VESSEL WALL THICKNESS CALCULATION REQUIRES 12MM NOT 10MM,Calculation,8
+ERECTION FEASIBILITY: PROVIDE TEMPORARY LIFTING LUGS FOR MODULAR FRAME TRANSPORT,Feasibility,9
+ECN no missing on revised gusset plate detail,Technical,0
+Hazardous area classification boundary symbol missing per NFPA 497 standard -BEK,Standards,4
+Incorrect pipe schedule XXS specified for design pressure 2500 PSI -MWR,Technical,0
+PIPING AND STRUCTURAL CLASH: PIPE FLANGE HITS BOTTOM FLANGE OF W12 BEAM,Coordination,5
+TUBING MATERIAL CALLOUT INCORRECT: SPECIFY SEAMLESS 316SS INSTRUMENT TUBING,Material,10
+EQUIPMENT TRANSPORT FEASIBILITY: SKID WIDTH EXCEEDS MAXIMUM ROADWAY SHIPPING CLEARANCE,Feasibility,9
+Emergency exit signage symbol not per ISO 7010 safety sign standard By: VSM,Standards,4
+Coordinate with mechanical: equipment nozzle loads exceed allowable piping interface limits -JDM,Coordination,5
+Missing break line symbol on truncated pipe spool run,Drafting,1
+TEXT ALIGNMENT IN GENERAL NOTES SECTION IS JAGGED: ALIGN LEFT MARGINS BY: VSM,Cosmetic,3
+Update piping notes to include minimum slope requirement on condensate headers,Notes,11
+Delta revision symbol missing on updated elevation callout -JCM,Revision,7
+Center-to-center dimension between nozzles N1 and N2 is missing -JCM,Dimension,2
+ERECTION CLEARANCE: OVERHEAD CRANE HOOK CANNOT REACH PUMP FOR MAINTENANCE REMOVAL,Feasibility,9
+Structural truss member buckling calculation does not verify unbraced length,Calculation,8
+STANDARD ELECTRICAL GROUNDING SYMBOL MISSING AT TRANSFORMER NEUTRAL CONNECTION,Standards,4
+MATERIAL TAKE-OFF MTO LINE ITEM MISSING FOR PIPE REDUCER ON LINE 174005-S12-04-P08 -JDM,BOM,12
+"Provide missing coordinate dimensions X, Y, Z for pipe support shoe SUP-12 -JDM",Dimension,2
+Missing dashed hidden line representing equipment clearance envelope,Drafting,1
+CLASH WITH CIVIL/STRUCTURAL: HVAC DUCT PENETRATES STRUCTURAL MOMENT FRAME BEAM -MWR,Coordination,5
+Note reference error: detail refers to note 15 but notes list only goes up to note 11 -BEK,Notes,11
+Delta revision symbol missing on updated elevation callout -RJY,Revision,7
+Inter-discipline interference: structural diagonal bracing blocks instrument transmitter display,Coordination,5
+BOM DESCRIPTION MISSING VALVE ACTUATOR MODEL AND AIR SUPPLY PRESSURE RATING,BOM,12
+General note regarding field touch-up paint missing from structural drawing By: VSM,Notes,11
+PART NUMBER WRONG ON C-100 BRACKET MOUNTING ASSEMBLY: SHOWS PL-102-CS INSTEAD OF FST-882-B7 -UCC,Technical,0
+"Incorrect dimension: overall length shows 1200 mm but sum of segment callouts is 12'-6""",Dimension,2
+VALVE OPERATION FEASIBILITY: HAND LEVER HITS STRUCTURAL COLUMN WHEN OPENING VALVE -BEK,Feasibility,9
+CL EL EL +108.250' callout missing for pipe centerline on elevation view By: BreKol,Dimension,2
+MACHINING SYMBOL MISSING ON FLANGE MATING FACE SURFACE FINISH REQUIREMENT -JJD,Technical,0
+CLASH WITH EQUIPMENT ACCESS: MOTOR REMOVAL PATH BLOCKED BY ADJACENT PROCESS LINE,Coordination,5
+Centerline missing on symmetric equipment foundation pad detail,Drafting,1
+CHECK PIPE SPOOL CUT LENGTH DIMENSION: ACCOUNT FOR GASKET THICKNESS,Dimension,2
+Incorrect flange rating listed in bill of materials table for item 12 -RJY,BOM,12
+Detail bubble Detail B missing sheet cross-reference on elevation view,Drafting,1
+TEXT CALLOUT ROTATED AT ODD ANGLE: ALIGN HORIZONTALLY FOR READABILITY -JJD,Cosmetic,3
+Missing stiffener plate connection at high stress beam junction -JJD,Technical,0
+TYPO ERROR IN TITLE BLOCK: 'ENGINEERINGG' MISSPELLED WITH DOUBLE G -MWR,Cosmetic,3
+REVISION HISTORY BLOCK MISSING DATE AND INITIAL FOR REVISION C BY: BREKOL,Revision,7
+PROJECT WORK ORDER NUMBER MISSING IN DOCUMENT CONTROL BLOCK BY: BREKOL,Documentation,6
+SYSTEM CLASH: CABLE LADDER OBSTRUCTS ACCESS TO EMERGENCY SHOWER STATION,Coordination,5
+Overlapping text and leader lines obscuring nozzle callout on C-100 -JDM,Drafting,1
+Standard electrical grounding symbol missing at transformer neutral connection,Standards,4
+Missing stiffener plate connection at high stress beam junction -JJD,Technical,0
+FONT HEIGHT INCONSISTENT BETWEEN SHEET TITLE AND DRAWING SUBTITLE BY: VSM,Cosmetic,3
+GENERAL NOTES PAGE SAYS SCAN SURVEY DATE 06/19/25: PLEASE CLARIFY SURVEY REFERENCE NOTE,Notes,11
+Missing engineer of record professional seal and signature in title block By: BreKol,Documentation,6
+Thermal relief calculation missing for trapped liquid segment on line 12-CW-305-CS -UCC,Calculation,8
+Vessel nozzle reinforcement pad area calculation insufficient for external piping moment -BEK,Calculation,8
+Wrong gasket material: graphite filled spiral wound required for steam service -JDM,Material,10
+FONT THICKNESS TOO HEAVY MAKING SMALL NUMERICAL TAGS ILLEGIBLE -UCC,Cosmetic,3
+LINE OVERLAP OBSERVED BETWEEN DIMENSION EXTENSION LINE AND CENTERLINE ON GRID B-3 -JJD,Drafting,1
+Spelling error in note 3: 'reciever' should be corrected to 'receiver' -JCM,Cosmetic,3
+Documentation hold: pending vendor certified drawing attachment -UCC,Documentation,6
+Update BOM item descriptions to match standard SAP catalog naming conventions -BEK,BOM,12
+FONT THICKNESS TOO HEAVY MAKING SMALL NUMERICAL TAGS ILLEGIBLE,Cosmetic,3
+Hydraulic gradient calculation discrepancy on gravity sewer line slope -JDM,Calculation,8
+GEOMETRIC TOLERANCING GD&T FRAME SYMBOL MISSING DATUM REFERENCE PER ASME Y14.5 -MWR,Standards,4
+General note 2 references obsolete specification document 01-SPEC-1998: update to Rev 2026 -JDM,Notes,11
+Clash with civil/structural: HVAC duct penetrates structural moment frame beam -MWR,Coordination,5
+MTO discrepancy: structural framing schedule omitted W10x49 beam material take-off -JCM,BOM,12
+Revision cloud missing around modified nozzle connection at grid C-5,Revision,7
+Isometric drawing view orientation misaligned with plan coordinates -JJD,Drafting,1
+Accessibility issue: transmitter display not readable from operating floor By: BreKol,Feasibility,9
+COSMETIC CLEANUP: REMOVE STRAY CAD DOTS AND UNREFERENCED TEXT FRAGMENTS -JCM,Cosmetic,3
+Field weld accessibility: joint located inside enclosed box beam cannot be inspected,Feasibility,9
+Delta symbol callout 3 missing on sheet 2 revision history table -JDM,Revision,7
+CALCULATION ERROR: THERMAL EXPANSION STRESS EXCEEDS ALLOWABLE CODE STRESS ON LINE 12-CW-305-CS -MWR,Calculation,8
+Check equipment nozzle load connection details on V-101 inlet flange,Technical,0
+Revision table not updated: add Rev B description 'Incorporated client comments' By: BreKol,Revision,7
+Incorrect pipe schedule 20 specified for design pressure 1200 PSI -JDM,Technical,0
+Cable voltage drop calculation exceeds 3% allowable limit for 480V feeder,Calculation,8
+Note discrepancy: note states galvanize all steel but detail indicates painted finish,Notes,11
+Overlapping text and leader lines obscuring nozzle callout on V-101 -JJD,Drafting,1
+SAFETY SHOWER SYMBOL ORIENTATION VIOLATES ANSI Z358.1 SPECIFICATION,Standards,4
+UPDATE BOM ITEM DESCRIPTIONS TO MATCH STANDARD SAP CATALOG NAMING CONVENTIONS -JJD,BOM,12
+BOM table column for material grade is blank for items 3 through 8,BOM,12
+VALVE HANDWHEEL LOCATION UNREACHABLE FROM OPERATING PLATFORM: ADD CHAIN WHEEL OPERATOR -MWR,Feasibility,9
+Text justification misaligned in equipment table column By: BreKol,Cosmetic,3
+Coordinate with piping department: verify nozzle orientation matches P&ID M-015,Coordination,5
+General note 7 missing requirement for non-destructive examination NDT of critical welds -JCM,Notes,11
+Transport limit: modular unit height 500 mm exceeds railway overpass clearance -JJD,Feasibility,9
+INCORRECT PART NUMBER IN BOM ITEM 3: CATALOG NUMBER DOES NOT MATCH MANUFACTURER SPEC,BOM,12
+Incorrect member size for cross brace B-04: upgrade W16x57 to W18x76 for span load -JDM,Technical,0
+Misaligned column text in revision history table,Cosmetic,3
+Material grade inconsistency: pipe schedule shows SS304 but fittings show carbon steel,Material,10
+Project code and CAD drawing file name missing from title block margin -RJY,Documentation,6
+INCORRECT MEMBER SIZE FOR GIRDER G-1: UPGRADE HSS 6X6X3/8 TO W14X90 FOR SPAN LOAD BY: BREKOL,Technical,0
+Missing sheet reference callout: 'See companion sheet C-54718-31-002 for continuation' -UCC,Documentation,6
+CORROSION ALLOWANCE MATERIAL BUFFER OMITTED IN WALL THICKNESS SPECIFICATION -RJY,Material,10
+Pipe schedule standard callout non-compliant with ASME B36.10M,Standards,4
+WRONG WELD CALLOUT: REPLACE FILLET WELD WITH ALL-AROUND FILLET WELD ON MOMENT CONNECTION BY: BREKOL,Technical,0
+INCORRECT SYMBOL USED FOR CHECK VALVE: PER ISA-5.1 STANDARD REPLACE WITH STANDARD SYMBOL -JDM,Standards,4
+Revision note missing: reference ECN-4081 in revision description column By: VSM,Revision,7
+Erection feasibility: provide temporary lifting lugs for modular frame transport,Feasibility,9
+REVISION STATUS IN TITLE BLOCK SAYS REV 1 BUT REVISION TABLE LISTS REV 2,Revision,7
+"Incorrect elevation callout: TOC shows 88'-4 1/2"" but Section shows 114'-0"" -MWR",Dimension,2
+CL EL EL +14.500M CALLOUT MISSING FOR PIPE CENTERLINE ON ELEVATION VIEW -BEK,Dimension,2
+Coordinate tie-in point TP-666 location between piping and battery limit package,Coordination,5
+BOM part number typo: replace vendor code XYZ-100 with XYZ-200 -MWR,BOM,12
+Multiple revisions mixed on sheet: clear Rev 1 clouds and keep only Rev 2 changes,Revision,7
+Wrong weld callout: replace fillet weld with all-around fillet weld on moment connection,Technical,0
+Revision table not updated: add Rev B description 'Incorporated client comments',Revision,7
+ADD MANDATORY SAFETY NOTE: 'DO NOT ENERGIZE EQUIPMENT PRIOR TO INTERLOCK VALIDATION' -RJY,Notes,11
+REVISION CLOUD DRAWN WITH WRONG LINE WEIGHT: MUST FOLLOW REVISION STANDARD STYLE,Revision,7
+Incorrect symbol used for check valve: per ISA-5.1 standard replace with standard symbol -JCM,Standards,4
+Missing revision triangle tag next to revised beam size on framing plan -JCM,Revision,7
+Missing sheet reference callout: 'See companion sheet S-70086-01-101 for continuation',Documentation,6
+ADD ENVIRONMENTAL NOTE REGARDING SECONDARY CONTAINMENT DIKE DRAINAGE VALVE OPERATION -JCM,Notes,11
+SPELLING MISTAKE IN COATING SPEC NOTE: 'GALVANISE' SHOULD BE 'GALVANIZED' -BEK,Cosmetic,3
+Text justification misaligned in equipment table column -BEK,Cosmetic,3
+Relief valve sizing calculation sheet indicates orifice area 0.50 sq in but drawing shows 0.38,Calculation,8
+BOM TABLE COLUMN FOR MATERIAL GRADE IS BLANK FOR ITEMS 3 THROUGH 8,BOM,12
+PIPE SPAN DEFLECTION CALCULATION EXCEEDS L/240 CRITERIA UNDER HYDROSTATIC TEST LOAD BY: BREKOL,Calculation,8
+Font height inconsistent between sheet title and drawing subtitle,Cosmetic,3
+ISOMETRIC DRAWING VIEW ORIENTATION MISALIGNED WITH PLAN COORDINATES,Drafting,1
+STRUCTURAL BEAM MATERIAL CALLOUT MISSING ASTM SPECIFICATION STANDARD ON DRAWING,Material,10
+FONT HEIGHT INCONSISTENT BETWEEN SHEET TITLE AND DRAWING SUBTITLE -BEK,Cosmetic,3
+ARROWHEAD MISSING ON SECTION CUT CALLOUT MARKER -MWR,Drafting,1
+Weld size undersized: 1/4 inch fillet weld specified but 3/8 inch required for base metal thickness -RJY,Technical,0
+Check pipe spool cut length dimension: account for gasket thickness -JJD,Dimension,2
+MAINTENANCE FEASIBILITY: FILTER BASKET CANNOT BE REMOVED WITHOUT DISCONNECTING PIPING -JJD,Feasibility,9
+Corrosion allowance material buffer omitted in wall thickness specification -UCC,Material,10
+Missing engineer of record professional seal and signature in title block,Documentation,6
+Flange material must match pipe material specification ASTM A105 for CS lines -RJY,Material,10
+"Provide missing coordinate dimensions X, Y, Z for pipe support shoe SH-08 -JJD",Dimension,2
+UPDATE GENERAL NOTE 12 REGARDING TORQUE REQUIREMENTS FOR STRUCTURAL HIGH-STRENGTH BOLTS -RJY,Notes,11
+RELIEF VALVE SIZING CALCULATION SHEET INDICATES ORIFICE AREA 0.50 SQ IN BUT DRAWING SHOWS 0.38 BY: BREKOL,Calculation,8
+TRANSPORT LIMIT: MODULAR UNIT HEIGHT 150 MM EXCEEDS RAILWAY OVERPASS CLEARANCE -JCM,Feasibility,9
+Clash with electrical: conduit bank routes directly through valve operating envelope By: VSM,Coordination,5
+Revision cloud incomplete: does not fully enclose modified piping spool -BEK,Revision,7
+Fabrication feasibility: tight pipe spool geometry cannot be hot-dip galvanized without pooling -RJY,Feasibility,9
+Document distribution stamp incomplete: missing transmittal number,Documentation,6
+HATCH PATTERN MISSING IN CONCRETE FOUNDATION SECTION CUT,Drafting,1
+Structural beam size W14x90 inconsistent with design calculation sheet CALC-ST-101 By: BreKol,Calculation,8
+Update note 8: specify paint and protective coating system per client specification,Notes,11
+OVERALL HEIGHT DIMENSION MISSING FROM SKID BASE FRAME TO TOP OF VESSEL NOZZLE -JDM,Dimension,2
+UPDATE BILL OF MATERIALS BOM TO REFLECT LATEST REVISION OF PIPING COMPONENT SCHEDULE,BOM,12
+Incorrect O-ring elastomer material: specify Viton for hydrocarbon service -RJY,Material,10
+Sheet number indicates sheet 2 of 4 but total drawing set has 5 sheets,Documentation,6
+TUBING MATERIAL CALLOUT INCORRECT: SPECIFY SEAMLESS 316SS INSTRUMENT TUBING -JJD,Material,10
+COORDINATE WITH PIPING DEPARTMENT: VERIFY NOZZLE ORIENTATION MATCHES P&ID PID-004 -JDM,Coordination,5
+Note discrepancy: note states galvanize all steel but detail indicates painted finish,Notes,11
+Spelling mistake in coating spec note: 'galvanise' should be 'galvanized' By: VSM,Cosmetic,3
+REINFORCING BAR REBAR GRADE MUST BE ASTM A615 GRADE 60 PER STRUCTURAL SPEC,Material,10
+Non-standard abbreviation used: replace 'VLV' with standard abbreviation per project code -JDM,Standards,4
+Revision cloud overlaps drawing title block: reposition cloud boundary,Revision,7
+Nozzle projection dimension missing from vessel outer shell By: VSM,Dimension,2
+MISSING CLIENT DRAWING REFERENCE NUMBER IN MASTER TITLE BLOCK -JCM,Documentation,6
+Text justification misaligned in equipment table column -JCM,Cosmetic,3
+FASTENER MATERIAL CALLOUT INCORRECT: SPECIFY ASTM A193 GR. B7 STUDS WITH 2H HEAVY HEX NUTS BY: BREKOL,Material,10
+Structural beam material callout missing ASTM specification standard on drawing,Material,10
+PROJECT CODE AND CAD DRAWING FILE NAME MISSING FROM TITLE BLOCK MARGIN -JJD,Documentation,6
+MISSING ITEM TAG NUMBER IN BOM SCHEDULE COLUMN FOR TEMPERATURE TRANSMITTER,BOM,12
+Structural beam material callout missing ASTM specification standard on drawing,Material,10
+EQUIPMENT TRANSPORT FEASIBILITY: SKID WIDTH EXCEEDS MAXIMUM ROADWAY SHIPPING CLEARANCE,Feasibility,9
+BOM QUANTITY MISMATCH: DRAWING SHOWS 4 SUPPORT BRACKETS BUT BOM LISTS QUANTITY 2,BOM,12
+Revision description vague: replace 'Revisions' with detailed change description By: VSM,Revision,7
+Revision note missing: reference ECN-4081 in revision description column,Revision,7
+Material grade mismatch: structural plates show ASTM A36 instead of high-strength A992 -MWR,Material,10
+"TOLERANCE CALLOUT +/- 1/16"" MISSING ON OVERALL SKID LENGTH DIMENSION BY: VSM",Dimension,2
+MISSING HIDDEN LINE FOR UNDERGROUND CONDUIT DUCT BANK ON PLAN VIEW -RJY,Drafting,1
+INCORRECT PART NUMBER IN BOM ITEM 21: CATALOG NUMBER DOES NOT MATCH MANUFACTURER SPEC,BOM,12
+Missing break line symbol on truncated pipe spool run -BEK,Drafting,1
+DIMENSION CALLOUT FROM SURVEY MONUMENT DATUM IS MISSING ON PLOT PLAN,Dimension,2
+Codal issue: egress platform landing dimensions violate NFPA 101 Life Safety Code,Standards,4
+Project code and CAD drawing file name missing from title block margin -MWR,Documentation,6
+Incorrect tolerance specified on hole pattern for C-100 baseplate -JCM,Technical,0
+PIPE SCHEDULE STANDARD CALLOUT NON-COMPLIANT WITH ASME B36.10M -RJY,Standards,4
+"Incorrect drawing scale: indicated scale 1/2"" = 1'-0"" does not match graphic bar scale",Drafting,1
+Project work order number missing in document control block,Documentation,6
+Center-to-center dimension between nozzles N1 and N2 is missing -JDM,Dimension,2
+PART NUMBER WRONG ON P-204A/B BRACKET MOUNTING ASSEMBLY: SHOWS FST-882-SS INSTEAD OF BKT-4081-B -UCC,Technical,0
+VERIFY MISSING SETBACK DIMENSION FROM PROPERTY BOUNDARY LINE -UCC,Dimension,2
+Wrong view orientation: detail shows left elevation instead of right elevation -UCC,Drafting,1
+Leader line crossing dimension string: reroute leader to detail bubble,Drafting,1
+BOM ITEM TABLE MISSING UNIT WEIGHT AND TOTAL WEIGHT COLUMN ENTRIES,BOM,12
+Field weld accessibility: joint located inside enclosed box beam cannot be inspected,Feasibility,9
+Nozzle projection dimension missing from vessel outer shell,Dimension,2
+VESSEL NOZZLE REINFORCEMENT PAD AREA CALCULATION INSUFFICIENT FOR EXTERNAL PIPING MOMENT,Calculation,8
+CODAL COMPLIANCE ISSUE: AISLE CLEARANCE WIDTH BELOW NFPA MINIMUM 36 INCHES,Standards,4
+Cosmetic cleanup: remove stray CAD dots and unreferenced text fragments By: VSM,Cosmetic,3
+Note 5 wording unclear: revise to state clearly 'All dimensions are in millimeters unless noted',Notes,11
+"CL EL 345'-11 3/4"" callout missing for pipe centerline on elevation view",Dimension,2
+Delta symbol callout 3 missing on sheet 2 revision history table -MWR,Revision,7
+Sheet number indicates sheet 2 of 4 but total drawing set has 5 sheets -JCM,Documentation,6
+BOM description incorrect: item 7 description says gate valve but graphic shows globe valve By: BreKol,BOM,12
+Grout material callout must specify non-shrink cementitious grout per project standard,Material,10
+Erection feasibility issue: column splice location inaccessible for mobile crane hook,Feasibility,9
+ECN number missing on engineering change detail for pipe rack anchor frame,Technical,0
+Incorrect pipe schedule XXS specified for design pressure 2500 PSI -RJY,Technical,0
+Text alignment in general notes section is jagged: align left margins,Cosmetic,3
+Revise note 1 to reference the latest geotechnical site investigation report,Notes,11
+Coordinate with architectural team: wall penetration sleeve location conflicts with column -BEK,Coordination,5
+Incorrect material specified: line requires Alloy 20 instead of carbon steel for corrosive service,Material,10
+SPELLING ERROR IN NOTE 3: 'RECIEVER' SHOULD BE CORRECTED TO 'RECEIVER',Cosmetic,3
+COORDINATE WITH ARCHITECTURAL TEAM: WALL PENETRATION SLEEVE LOCATION CONFLICTS WITH COLUMN,Coordination,5
+UPDATE NOTE 8: SPECIFY PAINT AND PROTECTIVE COATING SYSTEM PER CLIENT SPECIFICATION -JJD,Notes,11
+COORDINATE WITH MECHANICAL: EQUIPMENT NOZZLE LOADS EXCEED ALLOWABLE PIPING INTERFACE LIMITS -JJD,Coordination,5
+Revision status in title block says Rev 1 but revision table lists Rev 2 By: BreKol,Revision,7
+Missing moment connection plate weld size callout on detail Detail 12 By: VSM,Technical,0
+Line weight for piping header too thin: distinguish from background grid lines,Drafting,1
+REVISION STATUS IN TITLE BLOCK SAYS REV 1 BUT REVISION TABLE LISTS REV 2 -BEK,Revision,7
+Missing radial clearance dimension around valve handwheel,Dimension,2
+BOM QUANTITY MISMATCH: DRAWING SHOWS 4 SUPPORT BRACKETS BUT BOM LISTS QUANTITY 2,BOM,12
+General note regarding field touch-up paint missing from structural drawing By: BreKol,Notes,11
+Verify structural connection capacity: shear tab bolt count insufficient,Technical,0
+THERMAL RELIEF CALCULATION MISSING FOR TRAPPED LIQUID SEGMENT ON LINE 12-CW-305-CS -JCM,Calculation,8
+SYSTEM CLASH: CABLE LADDER OBSTRUCTS ACCESS TO EMERGENCY SHOWER STATION,Coordination,5
+MISSING BREAK LINE SYMBOL ON TRUNCATED PIPE SPOOL RUN,Drafting,1
+ISOMETRIC DRAWING VIEW ORIENTATION MISALIGNED WITH PLAN COORDINATES -BEK,Drafting,1
+Typo error in title block: 'ENGINEERINGG' misspelled with double G,Cosmetic,3
+Coordinate with civil lead: concrete pad size insufficient for new pump skid footprint,Coordination,5
+Incorrect material: 304SS specified where 316L required for chloride stress corrosion,Material,10
+FIELD ASSEMBLY FEASIBILITY: PROVIDE BOLTED SPLICE INSTEAD OF FIELD FULL-PENETRATION WELD BY: BREKOL,Feasibility,9
+MISSING MATCH LINE CALLOUT ON SHEET 3 FOR CONTINUATION ON SHEET 2 -JJD,Drafting,1
+REVISION CLOUD INCOMPLETE: DOES NOT FULLY ENCLOSE MODIFIED PIPING SPOOL BY: VSM,Revision,7
+Missing moment connection plate weld size callout on detail Detail 3 By: BreKol,Technical,0
+"CL EL 102'-6"" CALLOUT MISSING FOR PIPE CENTERLINE ON ELEVATION VIEW",Dimension,2
+Revision history block missing date and initial for Revision C By: BreKol,Revision,7
+DOCUMENT DISTRIBUTION STAMP INCOMPLETE: MISSING TRANSMITTAL NUMBER BY: VSM,Documentation,6
+Typo error in title block: 'ENGINEERINGG' misspelled with double G,Cosmetic,3
+Weld size undersized: 1/4 inch fillet weld specified but 3/8 inch required for base metal thickness -JJD,Technical,0
+VERIFY MISSING SETBACK DIMENSION FROM PROPERTY BOUNDARY LINE,Dimension,2
+REVISION SYMBOL DELTA-2 MISSING NEAR RELOCATED DRAIN VALVE BY: VSM,Revision,7
+Revision table row entry missing reviewer initials and approval date -JDM,Revision,7
+Incorrect manufacturer name listed in bill of materials for motor starter unit,BOM,12
+DRAWING TITLE DOES NOT MATCH MASTER DOCUMENT REGISTER INDEX BY: VSM,Documentation,6
+TRANSFORMER SIZING CALCULATION DOES NOT ACCOUNT FOR CONTINUOUS MOTOR STARTING KVA,Calculation,8
+Pump head calculation mismatch between data sheet and process flow diagram -BEK,Calculation,8
+Incorrect symbol used for check valve: per ISA-5.1 standard replace with standard symbol -JCM,Standards,4
+Pipe insulation material specification missing on high temperature steam line,Material,10
+Short circuit current rating calculation does not support specified breaker kAIC rating By: BreKol,Calculation,8
+Isometric drawing view orientation misaligned with plan coordinates,Drafting,1
+Missing radial clearance dimension around valve handwheel -JCM,Dimension,2
+Note discrepancy: note states galvanize all steel but detail indicates painted finish,Notes,11
+Erection sequence conflict: beam cannot be installed after vessel is set on foundation,Feasibility,9
+Missing stiffener plate connection at high stress beam junction,Technical,0
+Leader line crossing dimension string: reroute leader to detail bubble,Drafting,1
+Missing hidden line for underground conduit duct bank on plan view,Drafting,1
+MTO discrepancy: structural framing schedule omitted W10x49 beam material take-off -RJY,BOM,12
+Revision cloud incomplete: does not fully enclose modified piping spool,Revision,7
+Overlapping text and leader lines obscuring nozzle callout on TK-401 -JCM,Drafting,1
+Delta symbol callout 3 missing on sheet 2 revision history table -BEK,Revision,7
+Font style inconsistent: use standard Romans font throughout sheet,Cosmetic,3
+Verify missing setback dimension from property boundary line,Dimension,2
+Flow rate calculation discrepancy between PFD heat & material balance and line schedule,Calculation,8
+COORDINATE ELECTRICAL POWER FEED ROUTING WITH UNDERGROUND DRAINAGE PIPING -RJY,Coordination,5
+COORDINATE WITH PIPING DEPARTMENT: VERIFY NOZZLE ORIENTATION MATCHES P&ID P-101 -UCC,Coordination,5
+ERECTION SEQUENCE CONFLICT: BEAM CANNOT BE INSTALLED AFTER VESSEL IS SET ON FOUNDATION,Feasibility,9

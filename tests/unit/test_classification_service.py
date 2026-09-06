@@ -1,30 +1,35 @@
 import pytest
 from src.services.classification_service import ClassificationService
 
-def test_piping_comment_classified_correctly():
+def test_technical_comment_classified_correctly():
     service = ClassificationService()
-    res = service.classify_comment("Check valve flange alignment")
-    assert res.primary_category.category_name == "Piping/Process"
+    res = service.classify_comment("Incorrect member size: upgrade beam size W12x45 for span load")
+    assert res.primary_category.category_name == "Technical"
 
-def test_electrical_comment_classified():
+def test_drafting_comment_classified():
     service = ClassificationService()
-    res = service.classify_comment("Cable tray routing near panel")
-    assert res.primary_category.category_name == "Electrical/Instrumentation"
+    res = service.classify_comment("Line overlap observed between dimension line and centerline")
+    assert res.primary_category.category_name == "Drafting"
 
-def test_structural_comment_classified():
+def test_dimension_comment_classified():
     service = ClassificationService()
-    res = service.classify_comment("Foundation bolt anchor plate")
-    assert res.primary_category.category_name == "Structural/Civil"
+    res = service.classify_comment("Incorrect dimension: overall length does not match elevation callout")
+    assert res.primary_category.category_name == "Dimension"
 
-def test_safety_comment_classified():
+def test_standards_comment_classified():
     service = ClassificationService()
-    res = service.classify_comment("Emergency shutdown valve missing")
-    assert res.primary_category.category_name == "Safety/HSE"
+    res = service.classify_comment("Codal issue: stair handrail height does not meet OSHA standard")
+    assert res.primary_category.category_name == "Standards"
 
-def test_dimensional_comment_classified():
+def test_coordination_comment_classified():
     service = ClassificationService()
-    res = service.classify_comment("Tolerance on diameter exceeds limit")
-    assert res.primary_category.category_name == "Dimensional/Tolerancing"
+    res = service.classify_comment("Clash with piping: 6 inch line conflicts with cable tray")
+    assert res.primary_category.category_name == "Coordination"
+
+def test_bom_comment_classified():
+    service = ClassificationService()
+    res = service.classify_comment("Incorrect part number in BOM: catalog number does not match vendor spec")
+    assert res.primary_category.category_name == "BOM"
 
 def test_low_confidence_flagged_for_review():
     service = ClassificationService()
@@ -33,6 +38,7 @@ def test_low_confidence_flagged_for_review():
 
 def test_batch_classification_counts():
     service = ClassificationService()
-    batch = [{"text": "Check valve"}, {"text": "vague text"}]
+    batch = [{"text": "Incorrect member size for beam"}, {"text": "vague text"}]
     res = service.classify_batch(batch)
     assert res.total_classified == 2
+

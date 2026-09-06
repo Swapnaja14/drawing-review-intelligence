@@ -22,12 +22,19 @@ from app.components.charts import (
 )
 
 STANDARD_CATEGORIES: List[str] = [
-    "Piping/Process",
-    "Electrical/Instrumentation",
-    "Structural/Civil",
-    "Safety/HSE",
-    "Dimensional/Tolerancing",
-    "General/Administrative",
+    "Technical",
+    "Drafting",
+    "Dimension",
+    "Cosmetic",
+    "Standards",
+    "Coordination",
+    "Documentation",
+    "Revision",
+    "Calculation",
+    "Feasibility",
+    "Material",
+    "Notes",
+    "BOM",
     "Uncategorized",
 ]
 

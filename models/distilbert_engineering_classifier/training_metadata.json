@@ -1,0 +1,22 @@
+{
+  "model_name": "distilbert-base-uncased",
+  "num_classes": 13,
+  "categories": [
+    "Technical",
+    "Drafting",
+    "Dimension",
+    "Cosmetic",
+    "Standards",
+    "Coordination",
+    "Documentation",
+    "Revision",
+    "Calculation",
+    "Feasibility",
+    "Material",
+    "Notes",
+    "BOM"
+  ],
+  "best_val_accuracy": 1.0,
+  "epochs_trained": 3,
+  "trained_at": "2026-09-07 00:39:57"
+}

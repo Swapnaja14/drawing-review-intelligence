@@ -15,6 +15,20 @@ from src.core.dtos.analytics_dtos import (
 logger = get_logger(__name__)
 
 CATEGORY_COLORS = {
+    'Technical': '#EF4444',
+    'Drafting': '#8B5CF6',
+    'Dimension': '#3B82F6',
+    'Cosmetic': '#EC4899',
+    'Standards': '#F59E0B',
+    'Coordination': '#10B981',
+    'Documentation': '#6B7280',
+    'Revision': '#F97316',
+    'Calculation': '#6366F1',
+    'Feasibility': '#14B8A6',
+    'Material': '#06B6D4',
+    'Notes': '#84CC16',
+    'BOM': '#A855F7',
+    # Backwards compatibility
     'Piping/Process': '#3B82F6',
     'Electrical/Instrumentation': '#F59E0B',
     'Structural/Civil': '#10B981',
