@@ -63,10 +63,16 @@ class CategorySummaryCard(QFrame):
         cnt_lbl.setFont(QFont("Segoe UI Variable", 20, QFont.Weight.Bold))
         cnt_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         cnt_lbl.setStyleSheet(f"color:{color};")
-        lay.addWidget(cnt_lbl)
+        self._cnt_lbl = cnt_lbl
+        lay.addWidget(self._cnt_lbl)
 
         lab_lbl = QLabel(label)
         lab_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lab_lbl.setObjectName("SubCaption")
         lab_lbl.setWordWrap(True)
         lay.addWidget(lab_lbl)
+
+    def set_count(self, count: int) -> None:
+        """Update the displayed count value."""
+        self._cnt_lbl.setText(str(count))
+

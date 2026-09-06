@@ -295,8 +295,9 @@ class OcrResultsPage(QWidget):
             db_comments = self._controller.get_comments_for_drawing(
                 self._controller.current_drawing_id
             )
-            if db_comments:
-                return db_comments
+            return db_comments if db_comments else []
+        elif self._controller:
+            return []
         return list(md.COMMENTS)
 
     def reload_comments(self) -> None:

@@ -105,9 +105,23 @@ class DatabaseEngine:
     # ------------------------------------------------------------------
 
     def _init_db(self) -> None:
-        """Create all tables declared in models.py (idempotent)."""
+        """Create all tables declared in models.py (idempotent) and apply migrations."""
         Base.metadata.create_all(bind=self.engine)
+        self._run_migrations()
         logger.info(f"SQLite database ready at: {self.db_path}")
+
+    def _run_migrations(self) -> None:
+        """Ensure newly added columns exist in existing SQLite databases."""
+        try:
+            with self.engine.begin() as conn:
+                # Check columns in comments table
+                result = conn.execute(text("PRAGMA table_info(comments);"))
+                columns = [row[1] for row in result.fetchall()]
+                if columns and "label" not in columns:
+                    logger.info("Migrating database: adding 'label' column to 'comments' table")
+                    conn.execute(text("ALTER TABLE comments ADD COLUMN label VARCHAR(50) DEFAULT 'comment_red';"))
+        except Exception as exc:
+            logger.warning(f"Database migration check failed: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +199,7 @@ class DrawingRepository:
 
             session.commit()
             logger.info(
-                f"Saved drawing '{dto.file_name}' → id={drawing_id}, "
+                f"Saved drawing '{dto.file_name}' -> id={drawing_id}, "
                 f"{dto.total_pages} page(s)."
             )
             return _drawing_to_dict(drawing)
@@ -413,6 +427,7 @@ class CommentRepository:
         user_id: Optional[str] = None,
         cleaned_text: str = "",
         status: str = "Pending",
+        label: str = "comment_red",
     ) -> Dict[str, Any]:
         """Persist a single extracted comment.
 
@@ -433,6 +448,8 @@ class CommentRepository:
         status:
             Must be one of: "Pending", "Approved", "Rejected", "Flagged".
             Default is "Pending" for all newly extracted comments.
+        label:
+            Detection label, e.g. "comment_red", "comment_blue", "native_redline".
         """
         with self._db.get_session() as session:
             comment = CommentModel(
@@ -447,6 +464,7 @@ class CommentRepository:
                 category_name=category_name,
                 confidence=confidence,
                 status=status,
+                label=label,
                 bbox_x0=bbox[0],
                 bbox_y0=bbox[1],
                 bbox_x1=bbox[2],
@@ -455,6 +473,13 @@ class CommentRepository:
             session.add(comment)
             session.commit()
             return {"id": comment.id, "status": comment.status}
+
+    def delete_comments_for_drawing(self, drawing_id: str) -> int:
+        """Delete all existing comments for a drawing before re-processing."""
+        with self._db.get_session() as session:
+            count = session.query(CommentModel).filter(CommentModel.drawing_id == drawing_id).delete()
+            session.commit()
+            return count
 
     def get_comments_for_drawing(self, drawing_id: str) -> List[Dict[str, Any]]:
         with self._db.get_session() as session:
@@ -662,6 +687,7 @@ def _comment_to_dict(c: CommentModel) -> Dict[str, Any]:
         "user_id":              c.user_id,
         "confidence":           c.confidence,
         "status":               c.status,
+        "label":                getattr(c, "label", "comment_red") or "comment_red",
         "bbox":                 (c.bbox_x0, c.bbox_y0, c.bbox_x1, c.bbox_y1),
         "is_verified_by_human": c.is_verified_by_human,
         "created_at":           (

@@ -5,6 +5,7 @@ from src.core.dtos.classification_dtos import (
     BatchClassificationDTO
 )
 from src.infrastructure.logging.logger import get_logger
+import math
 
 logger = get_logger(__name__)
 
@@ -25,13 +26,41 @@ class ClassificationService:
         }
 
     def _rule_based_classify(self, text: str) -> List[CategoryPredictionDTO]:
+        """
+        Rule-based classification using keyword matching.
+        
+        Improved algorithm:
+        - Exact word matches get full weight (1.0)
+        - Partial matches get half weight (0.5)
+        - Confidence scales logarithmically (more realistic)
+        """
         predictions = []
-        words = text.lower().split()
+        text_lower = text.lower()
+        words = text_lower.split()
         
         for category, kws in self.keywords.items():
-            matches = [kw for kw in kws if kw.lower() in text.lower()]
+            # Find keyword matches with quality scoring
+            matches = []
+            match_score = 0.0
+            
+            for kw in kws:
+                kw_lower = kw.lower()
+                # Exact word match (higher weight)
+                if kw_lower in words:
+                    if kw not in matches:
+                        matches.append(kw)
+                    match_score += 1.0
+                # Partial match in text (lower weight)
+                elif kw_lower in text_lower:
+                    if kw not in matches:
+                        matches.append(kw)
+                    match_score += 0.5
+            
             if matches:
-                conf = min(1.0, len(matches) / 3.0) 
+                # Calculate confidence with logarithmic scaling
+                # This gives more realistic confidence growth
+                # 1 match ≈ 47%, 2 matches ≈ 57%, 3 matches ≈ 65%, 4+ matches ≈ 70%+
+                conf = min(1.0, 0.3 + (0.25 * math.log(match_score + 1)))
                 predictions.append(CategoryPredictionDTO(category, conf, matches))
             else:
                 predictions.append(CategoryPredictionDTO(category, 0.0, []))
@@ -39,9 +68,16 @@ class ClassificationService:
         return sorted(predictions, key=lambda x: x.confidence, reverse=True)
 
     def _try_ai_classify(self, text: str) -> Optional[List[CategoryPredictionDTO]]:
+        """
+        AI model classification (placeholder).
+        
+        Integration point for machine learning model.
+        Replace this method to use trained ML model.
+        """
         return None
 
     def classify_comment(self, comment_text: str, comment_id: str = '') -> ClassificationResultDTO:
+        """Classify a single comment into categories"""
         predictions = self._try_ai_classify(comment_text)
         method = 'ai_model'
         
@@ -64,6 +100,7 @@ class ClassificationService:
         )
         
     def classify_batch(self, comments: List[Dict[str, Any]], drawing_id: str = '') -> BatchClassificationDTO:
+        """Classify multiple comments in batch"""
         results = []
         high = 0
         low = 0
