@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import List
+from dataclasses import dataclass, field
+from typing import List, Optional
 
 @dataclass
 class CorrectionDTO:
@@ -11,8 +11,14 @@ class CorrectionDTO:
 class CleanedCommentDTO:
     original_text: str
     cleaned_text: str
-    corrections: List[CorrectionDTO]
-    similarity_score: float
+    corrections: List[CorrectionDTO] = field(default_factory=list)
+    similarity_score: float = 1.0
+    sub_actions: List[str] = field(default_factory=list)
+    reviewer_initials: Optional[str] = None
+    action_verb: Optional[str] = None
+    priority_level: str = "MEDIUM"
+    engineering_terms_found: List[str] = field(default_factory=list)
+    is_duplicate_of: Optional[str] = None
 
 @dataclass
 class TextCleaningResultDTO:
