@@ -398,21 +398,14 @@ class BBoxItem(QGraphicsRectItem):
     """
     Hoverable, coloured bounding-box overlay for a comment annotation.
 
-    Colour is keyed to the comment's status.  The border thickens on
-    hover to provide visual feedback.
-
-    Parameters
-    ----------
-    comment:
-        A ``mock_data.Comment`` (or any object with ``.id``,
-        ``.status``, ``.ocr_text`` attributes).
-    rect:
-        Scene-coordinate bounding rectangle.
+    Colour is keyed to the comment's status. The border thickens on
+    hover to provide visual feedback. Supports on_click callback.
     """
 
-    def __init__(self, comment, rect: QRectF, parent=None):
+    def __init__(self, comment, rect: QRectF, parent=None, on_click=None):
         super().__init__(rect, parent)
         self.comment = comment
+        self.on_click = on_click
 
         if isinstance(comment, dict):
             label = comment.get('label', '')
@@ -447,7 +440,13 @@ class BBoxItem(QGraphicsRectItem):
         self.setBrush(QBrush(fill))
         self.setPen(QPen(border, 1.5))
         self.setToolTip(f"{cid}: {str(ocr_text)[:60]}")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setAcceptHoverEvents(True)
+
+    def mousePressEvent(self, e) -> None:
+        if self.on_click and self.data(0):
+            self.on_click(str(self.data(0)))
+        super().mousePressEvent(e)
 
     def hoverEnterEvent(self, e) -> None:
         pen = self.pen()
@@ -457,6 +456,7 @@ class BBoxItem(QGraphicsRectItem):
 
     def hoverLeaveEvent(self, e) -> None:
         pen = self.pen()
-        pen.setWidth(1.5)
+        if self.zValue() < 5:
+            pen.setWidth(1.5)
         self.setPen(pen)
         super().hoverLeaveEvent(e)

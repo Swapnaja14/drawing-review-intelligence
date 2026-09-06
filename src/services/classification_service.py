@@ -5,55 +5,116 @@ from src.core.dtos.classification_dtos import (
     BatchClassificationDTO
 )
 from src.infrastructure.logging.logger import get_logger
+from pathlib import Path
 import math
 
 logger = get_logger(__name__)
 
 class ClassificationService:
-    def __init__(self):
+    def __init__(self, model_dir: Optional[Path] = None):
         self.keywords = self._build_category_keywords()
-        self.HIGH_CONFIDENCE = 0.85
+        self.HIGH_CONFIDENCE = 0.80
         self.LOW_CONFIDENCE = 0.60
+        self.model_dir = model_dir or (Path(__file__).resolve().parent.parent.parent / "models" / "distilbert_engineering_classifier")
+        self._ai_model = None
+        self._ai_tokenizer = None
+        self._ai_device = None
+        self._model_load_failed = False
         
     def _build_category_keywords(self) -> Dict[str, List[str]]:
         return {
-            'Piping/Process': [
-                'pipe', 'piping', 'valve', 'flange', 'flg', 'gasket', 'elbow', 'tee', 'reducer', 
-                'coupling', 'P&ID', 'P&I', 'PFD', 'BOM', 'MTO', 'NPS', 'DN', 'PN', 'SCH', 'schedule', 
-                'SS316L', 'SS304', 'CS', 'flowline', 'header', 'manifold', 'nozzle', 'fitting', 
-                'weld', 'socket', 'butt-weld', 'BW', 'SW', 'THD', 'NPT', 'RF', 'FF', 'RTJ', 'SO', 'WN', 'BL',
-                'threaded', 'nominal', 'bore', 'pressure', 'temperature', 'flow', 'process', 'fluid', 
-                'steam', 'condensate', 'drain', 'spool', 'exp'
+            'Technical': [
+                'member size', 'beam size', 'column size', 'missing connection', 'moment connection', 
+                'shear tab', 'connection detail', 'wrong weld', 'fillet weld', 'weld callout', 
+                'part number wrong', 'part number mismatch', 'ECN no', 'ECN number', 'machining symbol', 
+                'machining finish', 'surface finish', 'incorrect tolerance', 'tolerance', 'stiffener plate', 
+                'gusset plate', 'flange rating', 'pipe schedule', 'pressure rating', 'bolt grade', 
+                'A325', 'nozzle flange', 'undersized', 'shear connection'
             ],
-            'Electrical/Instrumentation': [
-                'cable', 'wire', 'conduit', 'junction', 'panel', 'switch', 'breaker', 'transformer', 
-                'motor', 'sensor', 'transmitter', 'controller', 'PLC', 'DCS', 'SCADA', 'VFD', 
-                'signal', 'voltage', 'volt', 'current', 'ampere', 'watt', 'circuit', 'grounding', 
-                'earthing', 'GND', 'PE', 'instrument', 'gauge', 'meter', 'thermocouple', 'RTD', 
-                'control valve', 'actuator', 'JB', 'MCC', 'loop', 'I/O', 'tag'
+            'Drafting': [
+                'line overlap', 'missing hidden line', 'hidden line', 'incorrect drawing scale', 
+                'drawing scale', 'wrong views', 'projection', 'section cut', 'view orientation', 
+                'leader line', 'detail bubble', 'dashed line', 'hatch pattern', 'line weight', 
+                'isometric view', 'match line', 'centerline', 'arrowhead', 'break line', 
+                'overlapping text', 'view mismatch'
             ],
-            'Structural/Civil': [
-                'beam', 'column', 'foundation', 'concrete', 'rebar', 'steel', 'structural', 
-                'load', 'anchor', 'bolt', 'plate', 'gusset', 'brace', 'truss', 'frame', 'slab', 
-                'footing', 'pile', 'grout', 'weld', 'connection', 'support', 'hanger', 'clip', 
-                'HSS', 'TOC', 'BOS', 'TOS', 'grid', 'baseplate', 'embed'
+            'Dimension': [
+                'incorrect dimension', 'missing dimension', 'dimension', 'dim', 'CL EL', 
+                'centerline elevation', 'center-to-center', 'elevation callout', 'TOC', 
+                'dimension string', 'radial clearance', 'coordinate dimensions', 'nozzle projection', 
+                'anchor bolt centers', 'vertical clearance', 'cut length', 'setback', 'discrepancy in diameter', 
+                'radius dimension', 'overall height', 'projection dimension'
             ],
-            'Safety/HSE': [
-                'safety', 'hazard', 'fire', 'emergency', 'alarm', 'evacuation', 'PPE', 'guard', 
-                'barrier', 'ventilation', 'toxic', 'flammable', 'explosion', 'HAZOP', 'SIL', 
-                'ESD', 'PSV', 'PRV', 'relief', 'shutdown', 'interlock', 'NFPA', 'OSHA'
+            'Cosmetic': [
+                'text alignment', 'font size', 'spelling', 'typo', 'typo error', 
+                'font style', 'Romans', 'text overlapping', 'text rotated', 'justification', 
+                'font height', 'cosmetic cleanup', 'stray CAD', 'capitalization', 'font thickness', 
+                'misaligned column'
             ],
-            'Dimensional/Tolerancing': [
-                'dimension', 'DIM', 'tolerance', 'TOL', 'clearance', 'offset', 'alignment', 
-                'elevation', 'EL', 'CL', 'centerline', 'coordinate', 'datum', 'GD&T', 'flatness', 
-                'perpendicular', 'parallel', 'concentricity', 'runout', 'position', 'profile', 
-                'angularity', 'symmetry', 'mm', 'inch', 'meter', 'radius', 'diameter', 'height', 'width'
+            'Standards': [
+                'incorrect symbol', 'codal issue', 'symbol', 'standard', 'ISA-5.1', 
+                'OSHA', 'IBC', 'AWS A2.4', 'STD-001', 'IEEE', 'IEC', 
+                'hazardous area', 'NFPA 497', 'ASME B16.5', 'API 526', 'AISC', 
+                'MSS SP-58', 'GD&T', 'ASME Y14.5', 'ISO 7010', 'NFPA 101', 'ANSI Z358.1', 
+                'ASME B36.10M', 'non-standard abbreviation', 'code stamp'
             ],
-            'General/Administrative': [
-                'revision', 'REV', 'issue', 'approval', 'approved', 'review', 'comment', 'note', 
-                'reference', 'REF', 'specification', 'SPEC', 'standard', 'code', 'drawing', 'DWG', 
-                'document', 'title', 'date', 'signature', 'stamp', 'mark', 'legend', 'symbol', 
-                'abbreviation', 'general', 'TYP', 'typical', 'SHT', 'sheet', 'GA', 'ISO'
+            'Coordination': [
+                'clash', 'conflict', 'inter-discipline', 'coordinate', 'interference', 
+                'clash with piping', 'clash with civil', 'clash with electrical', 'cable tray clash', 
+                'HVAC duct clash', 'penetrates', 'junction box clash', 'footprint', 
+                'sprinkler clash', 'hook travel', 'tie-in', 'battery limit', 'diagonal bracing blocks', 
+                'motor removal path'
+            ],
+            'Documentation': [
+                'title block', 'title block incomplete', 'project number missing', 'client drawing reference', 
+                'approval signatures', 'checker', 'sign-off block', 'master document register', 
+                'sheet reference', 'scale box', 'project code', 'CAD drawing file', 'specification number', 
+                'drawing status stamp', 'ISSUED FOR CONSTRUCTION', 'IFC', 'IFD', 'sheet number', 
+                'client logo', 'vendor certified', 'cross-reference index', 'professional seal', 
+                'transmittal number', 'work order'
+            ],
+            'Revision': [
+                'revision cloud', 'revision table', 'revision symbol', 'delta', 'triangle tag', 
+                'Rev A', 'Rev B', 'Rev C', 'Rev 1', 'Rev 2', 'Rev 0', 
+                'revision cloud missing', 'revision table not updated', 'revision description', 
+                'revision note', 'ECN', 'revision history', 'cloud boundary'
+            ],
+            'Calculation': [
+                'calculation', 'design inconsistency', 'pressure drop calculation', 'calculation sheet', 
+                'pump head calculation', 'thermal expansion', 'allowable stress', 'pile load capacity', 
+                'soil report', 'voltage drop calculation', 'wall thickness calculation', 
+                'relief valve sizing', 'overturning moment', 'flow rate calculation', 
+                'short circuit current', 'deflection calculation', 'hydraulic gradient', 
+                'seismic load', 'thermal relief', 'heat loss calculation', 'buckling calculation', 
+                'bearing pressure'
+            ],
+            'Feasibility': [
+                'erection feasibility', 'fabrication feasibility', 'feasibility', 'accessibility', 
+                'maintenance accessibility', 'tube bundle pull', 'erection sequence', 'bend radius', 
+                'handwheel unreachable', 'chain wheel', 'bolting accessibility', 'torque wrench clearance', 
+                'lifting lug', 'shipping clearance', 'roadway clearance', 'bolted splice', 
+                'field assembly', 'constructability', 'rebar congestion', 'hand lever hits', 
+                'filter basket', 'field weld accessibility'
+            ],
+            'Material': [
+                'incorrect material', 'material specified', 'material grade', 'ASTM A36', 
+                'A992', 'gasket material', 'PTFE', 'spiral wound', 'fastener material', 
+                'ASTM A193', '316L', '304SS', 'carbon steel', 'anchor bolt material', 
+                'insulation material', 'ASTM A572', 'O-ring elastomer', 'Viton', 'rebar grade', 
+                'A615', 'grout material', 'non-shrink cementitious', 'ASTM A105', 
+                'corrosion allowance'
+            ],
+            'Notes': [
+                'incorrect notes', 'update notes', 'general note', 'note', 'mandatory note', 
+                'PWHT requirement', 'obsolete specification', 'contradicts note', 'safety note', 
+                'coating note', 'paint note', 'environmental note', 'torque requirements', 
+                'hydrotest pressure note', 'NDT requirement', 'slope requirement', 'compressive strength'
+            ],
+            'BOM': [
+                'BOM', 'bill of materials', 'incorrect part number', 'part number in BOM', 
+                'BOM quantity', 'quantity mismatch', 'BOM description', 'MTO line item', 
+                'material take-off', 'unit weight', 'flange rating in BOM', 'spare parts list', 
+                'item count', 'component schedule', 'vendor cut sheet', 'SAP catalog'
             ]
         }
 
@@ -101,27 +162,117 @@ class ClassificationService:
 
     def _try_ai_classify(self, text: str) -> Optional[List[CategoryPredictionDTO]]:
         """
-        AI model classification (placeholder).
-        
-        Integration point for machine learning model.
-        Replace this method to use trained ML model.
+        AI model classification using fine-tuned DistilBERT if available.
         """
-        return None
+        if not text or self._model_load_failed:
+            return None
+
+        # Lazy load model
+        if self._ai_model is None:
+            if not self.model_dir.exists() or not (self.model_dir / "model.safetensors").exists():
+                return None
+            try:
+                import torch
+                from transformers import AutoTokenizer, AutoModelForSequenceClassification
+                self._ai_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                self._ai_tokenizer = AutoTokenizer.from_pretrained(self.model_dir)
+                self._ai_model = AutoModelForSequenceClassification.from_pretrained(self.model_dir)
+                self._ai_model.to(self._ai_device)
+                self._ai_model.eval()
+                logger.info(f"Loaded fine-tuned DistilBERT classifier from: {self.model_dir}")
+            except Exception as e:
+                logger.warning(f"Could not load DistilBERT model: {e}")
+                self._model_load_failed = True
+                return None
+
+        try:
+            import torch
+            encoding = self._ai_tokenizer(
+                text,
+                truncation=True,
+                max_length=128,
+                return_tensors="pt"
+            ).to(self._ai_device)
+
+            with torch.no_grad():
+                outputs = self._ai_model(**encoding)
+                probs = torch.softmax(outputs.logits, dim=1).cpu().squeeze(0).detach().numpy()
+
+            predictions = []
+            for idx, prob in enumerate(probs):
+                cat_name = self._ai_model.config.id2label.get(idx) or self._ai_model.config.id2label.get(str(idx), str(idx))
+                predictions.append(CategoryPredictionDTO(
+                    category_name=cat_name,
+                    confidence=float(round(prob, 4)),
+                    matched_keywords=[]
+                ))
+
+            return sorted(predictions, key=lambda x: x.confidence, reverse=True)
+        except Exception as inf_err:
+            logger.debug(f"DistilBERT inference failed for '{text}': {inf_err}")
+            return None
 
     def classify_comment(self, comment_text: str, comment_id: str = '') -> ClassificationResultDTO:
-        """Classify a single comment into categories"""
-        predictions = self._try_ai_classify(comment_text)
-        method = 'ai_model'
-        
-        if not predictions:
-            predictions = self._rule_based_classify(comment_text)
+        """Classify a single comment into categories with AI inference and keyword-grounded calibration"""
+        if not comment_text or not comment_text.strip():
+            return ClassificationResultDTO(
+                comment_id=comment_id,
+                text=comment_text,
+                primary_category=CategoryPredictionDTO('Documentation', 0.0, []),
+                alternative_categories=[],
+                classification_method='rule_based',
+                requires_human_review=True
+            )
+
+        clean_text = comment_text.strip()
+        words = clean_text.lower().split()
+
+        # 1. Rule-based keyword analysis
+        rule_preds = self._rule_based_classify(clean_text)
+        rule_map = {p.category_name: p for p in rule_preds}
+        total_keywords_matched = sum(len(p.matched_keywords) for p in rule_preds)
+
+        # 2. AI model prediction
+        ai_preds = self._try_ai_classify(clean_text)
+
+        if ai_preds:
+            method = 'ai_model'
+            final_predictions = []
+            for p in ai_preds:
+                kws = rule_map.get(p.category_name, CategoryPredictionDTO('', 0, [])).matched_keywords
+                rule_conf = rule_map.get(p.category_name, CategoryPredictionDTO('', 0, [])).confidence
+
+                # Grounding with matched engineering keywords
+                if kws and p.category_name != 'Documentation':
+                    combined_conf = min(1.0, 0.45 * p.confidence + 0.35 * rule_conf + 0.10 * len(kws))
+                elif total_keywords_matched > 0 and p.category_name == 'Documentation':
+                    # If specific domain keywords are present, penalize generic documentation category
+                    combined_conf = max(0.01, p.confidence * 0.30)
+                else:
+                    combined_conf = p.confidence * 0.85
+
+                final_predictions.append(CategoryPredictionDTO(
+                    category_name=p.category_name,
+                    confidence=float(round(combined_conf, 4)),
+                    matched_keywords=kws
+                ))
+
+            final_predictions = sorted(final_predictions, key=lambda x: x.confidence, reverse=True)
+            primary = final_predictions[0]
+            alts = final_predictions[1:]
+
+            # If input is very short/uninformative with 0 domain keywords, flag for review
+            if len(words) <= 3 and total_keywords_matched == 0:
+                primary.confidence = min(primary.confidence, 0.50)
+                requires_review = True
+            else:
+                requires_review = primary.confidence < self.LOW_CONFIDENCE
+        else:
             method = 'rule_based'
-            
-        primary = predictions[0] if predictions else CategoryPredictionDTO('Unknown', 0.0, [])
-        alts = predictions[1:] if len(predictions) > 1 else []
-        
-        requires_review = primary.confidence < self.LOW_CONFIDENCE
-        
+            primary = rule_preds[0] if rule_preds else CategoryPredictionDTO('Documentation', 0.0, [])
+            alts = rule_preds[1:] if len(rule_preds) > 1 else []
+            requires_review = (primary.confidence < self.LOW_CONFIDENCE) or (total_keywords_matched == 0)
+
         return ClassificationResultDTO(
             comment_id=comment_id,
             text=comment_text,

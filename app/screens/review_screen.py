@@ -34,14 +34,31 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame,
                                 QProgressBar, QSplitter, QSizePolicy,
                                 QGraphicsView, QGraphicsScene, QScrollArea)
 from PySide6.QtCore import Qt, QTimer, Signal, QRectF
-from PySide6.QtGui import QFont, QPainter, QKeyEvent, QPixmap
+from PySide6.QtGui import QFont, QPainter, QKeyEvent, QPixmap, QPen, QBrush, QColor
 
 from app import mock_data as md
 from app.components.chips import StatusChip, CategoryBadge
-from app.components.pdf_canvas import make_page_pixmap, draw_bounding_boxes
+from app.components.pdf_canvas import make_page_pixmap, draw_bounding_boxes, BBoxItem
 
 # Agreed status vocabulary — do not use any other values
 _VALID_STATUSES = ("Pending", "Approved", "Rejected", "Flagged")
+
+
+class _CommentAdapter:
+    """Lightweight adapter that wraps comment dicts for BBoxItem compatibility."""
+    def __init__(self, comment: Union[Dict[str, Any], Any]) -> None:
+        if isinstance(comment, dict):
+            self.id         = comment.get("id", "")
+            self.status     = comment.get("status", "Pending")
+            self.ocr_text   = comment.get("ocr_text", "")
+            self.label      = comment.get("label", "comment_red")
+            self.confidence = comment.get("confidence", 0.0)
+        else:
+            self.id         = getattr(comment, "id", "")
+            self.status     = getattr(comment, "status", "Pending")
+            self.ocr_text   = getattr(comment, "ocr_text", "")
+            self.label      = getattr(comment, "label", "comment_red")
+            self.confidence = getattr(comment, "confidence", 0.0)
 
 
 def _get(c: Union[Dict[str, Any], Any], field: str, default: Any = "") -> Any:
@@ -73,6 +90,9 @@ class HumanReviewPage(QWidget):
             self._comments = list(md.COMMENTS)
 
         self._idx     = 0
+        self._box_items: Dict[str, BBoxItem] = {}
+        self._current_canvas_page: Optional[int] = None
+
         # In-memory status cache: updated immediately on action, persisted via controller
         self._statuses: Dict[str, str] = {
             _get(c, "id"): _get(c, "status", "Pending")
@@ -194,6 +214,7 @@ class HumanReviewPage(QWidget):
         self._cat_combo = QComboBox()
         self._cat_combo.addItems(md.CATEGORIES)
         self._cat_combo.setFixedHeight(36)
+        self._cat_combo.currentTextChanged.connect(self._on_category_changed)
         edit_lay.addWidget(self._cat_combo)
 
         conf_row = QHBoxLayout()
@@ -313,32 +334,130 @@ class HumanReviewPage(QWidget):
 
     # ── Canvas / comment helpers ──────────────────────────────────
 
+    def _on_category_changed(self, new_cat: str) -> None:
+        if not new_cat:
+            return
+        self._cat_badge.set_category(new_cat)
+        if self._comments and self._idx < len(self._comments):
+            c = self._comments[self._idx]
+            if isinstance(c, dict):
+                c["category"] = new_cat
+            else:
+                setattr(c, "category", new_cat)
+
+    def _on_box_clicked(self, cid: str) -> None:
+        """Handle user clicking directly on a bounding box on the canvas."""
+        for idx, c in enumerate(self._comments):
+            if _get(c, "id") == cid:
+                self._idx = idx
+                self._load_comment()
+                break
+
     def _load_canvas(self) -> None:
         self._scene.clear()
+        self._box_items = {}
+
+        if not self._comments:
+            pm = make_page_pixmap(640, 820, comments=[])
+            self._scene.addPixmap(pm)
+            self._scene.setSceneRect(QRectF(pm.rect()))
+            self._current_canvas_page = 1
+            return
+
+        current_comment = self._comments[self._idx] if self._idx < len(self._comments) else self._comments[0]
+        page_num = _get(current_comment, "page", 1)
+        self._current_canvas_page = page_num
+
         page_comments = [
             c for c in self._comments
-            if _get(c, "page", 1) == (
-                _get(self._comments[self._idx], "page", 1)
-                if self._comments else 1
-            )
-        ] if self._comments else []
+            if _get(c, "page", 1) == page_num
+        ]
 
         if self._controller and self._controller.current_document:
             try:
-                page_num = _get(self._comments[self._idx], "page", 1) if self._comments else 1
                 rendered_dto = self._controller.pdf_service.get_page_render(
                     self._controller.current_document.file_path, page_num, dpi=150
                 )
                 pm = QPixmap()
                 pm.loadFromData(rendered_dto.image_bytes)
-                draw_bounding_boxes(pm, page_comments)
             except Exception:
-                pm = make_page_pixmap(640, 820, comments=page_comments)
+                pm = make_page_pixmap(640, 820, comments=[])
         else:
-            pm = make_page_pixmap(640, 820, comments=page_comments)
+            pm = make_page_pixmap(640, 820, comments=[])
 
         self._scene.addPixmap(pm)
         self._scene.setSceneRect(QRectF(pm.rect()))
+
+        width = pm.width()
+        height = pm.height()
+
+        for c in page_comments:
+            bbox   = _get(c, "bbox", (0, 0, 0, 0))
+            cid    = _get(c, "id", "")
+            
+            x = bbox[0] * width
+            y = bbox[1] * height
+            w = bbox[2] * width
+            h = bbox[3] * height
+
+            adapter = _CommentAdapter(c)
+            item = BBoxItem(adapter, QRectF(x, y, w, h), on_click=self._on_box_clicked)
+            self._scene.addItem(item)
+            self._box_items[cid] = item
+
+    def _highlight_current_box(self) -> None:
+        """Visually highlight the active comment box and pan/zoom directly onto it."""
+        if not self._comments or self._idx >= len(self._comments):
+            return
+
+        c = self._comments[self._idx]
+        cid = _get(c, "id", "")
+        page_num = _get(c, "page", 1)
+
+        # Reload canvas if comment is on a different page or boxes not yet built
+        if self._current_canvas_page != page_num or cid not in self._box_items:
+            self._load_canvas()
+
+        # Update visual styles across all boxes on the active page
+        for bid, item in self._box_items.items():
+            if bid == cid:
+                # Active highlight: vibrant cyan/blue glowing border with high z-index
+                active_pen = QPen(QColor("#00E5FF"), 3.5)
+                active_pen.setStyle(Qt.PenStyle.SolidLine)
+                item.setPen(active_pen)
+                fill_color = QColor("#00E5FF")
+                fill_color.setAlphaF(0.35)
+                item.setBrush(QBrush(fill_color))
+                item.setZValue(10)
+            else:
+                # Inactive boxes: standard subtle styling
+                label = _get(item.comment, "label", "")
+                status = _get(item.comment, "status", "Pending")
+                if "blue" in str(label).lower() or str(label) in ("comment_blue", "native_blue_markup"):
+                    col_hex = "#3B82F6"
+                elif "yellow" in str(label).lower():
+                    col_hex = "#FBBF24"
+                elif "green" in str(label).lower():
+                    col_hex = "#10B981"
+                elif status == "Approved":
+                    col_hex = "#4ADE80"
+                else:
+                    col_hex = "#EF4444"
+
+                normal_pen = QPen(QColor(col_hex), 1.5)
+                normal_pen.setStyle(Qt.PenStyle.SolidLine)
+                item.setPen(normal_pen)
+                fill_color = QColor(col_hex)
+                fill_color.setAlphaF(0.15)
+                item.setBrush(QBrush(fill_color))
+                item.setZValue(1)
+
+        # Auto-pan & zoom into the active bounding box
+        if cid in self._box_items:
+            rect = self._box_items[cid].sceneBoundingRect()
+            if not rect.isEmpty() and rect.width() > 0 and rect.height() > 0:
+                target_rect = rect.adjusted(-120, -120, 120, 120)
+                self._view.fitInView(target_rect, Qt.AspectRatioMode.KeepAspectRatio)
 
     def _load_comment(self) -> None:
         if not self._comments:
@@ -369,6 +488,7 @@ class HumanReviewPage(QWidget):
         self._next_btn.setEnabled(self._idx < total - 1)
 
         self._load_audit_trail(cid)
+        self._highlight_current_box()
 
     def _flash_card(self, color: str) -> None:
         orig = self._edit_card.styleSheet()
@@ -540,13 +660,11 @@ class HumanReviewPage(QWidget):
     def _prev(self) -> None:
         if self._idx > 0:
             self._idx -= 1
-            self._load_canvas()
             self._load_comment()
 
     def _next(self) -> None:
         if self._idx < len(self._comments) - 1:
             self._idx += 1
-            self._load_canvas()
             self._load_comment()
 
     # ── Keyboard navigation ───────────────────────────────────────
