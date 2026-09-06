@@ -138,6 +138,10 @@ dataset/raw_drawings/*
 # OCR extracted text output (generated files)
 dataset/extracted_text/
 extracted_text/
+dataset/preprocessed_images/
+dataset/annotations/
+scratch/
+test_results/
 
 
 

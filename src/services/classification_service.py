@@ -17,12 +17,44 @@ class ClassificationService:
         
     def _build_category_keywords(self) -> Dict[str, List[str]]:
         return {
-            'Piping/Process': ['pipe', 'piping', 'valve', 'flange', 'gasket', 'elbow', 'tee', 'reducer', 'coupling', 'P&ID', 'flowline', 'header', 'manifold', 'nozzle', 'fitting', 'weld', 'socket', 'butt-weld', 'threaded', 'nominal', 'schedule', 'bore', 'pressure', 'temperature', 'flow', 'process', 'fluid', 'steam', 'condensate', 'drain'],
-            'Electrical/Instrumentation': ['cable', 'wire', 'conduit', 'junction', 'panel', 'switch', 'breaker', 'transformer', 'motor', 'sensor', 'transmitter', 'controller', 'PLC', 'DCS', 'signal', 'voltage', 'current', 'ampere', 'circuit', 'grounding', 'earthing', 'instrument', 'gauge', 'meter', 'thermocouple', 'RTD', 'control valve', 'actuator'],
-            'Structural/Civil': ['beam', 'column', 'foundation', 'concrete', 'rebar', 'steel', 'structural', 'load', 'anchor', 'bolt', 'plate', 'gusset', 'brace', 'truss', 'frame', 'slab', 'footing', 'pile', 'grout', 'weld', 'connection', 'support', 'hanger', 'clip'],
-            'Safety/HSE': ['safety', 'hazard', 'fire', 'emergency', 'alarm', 'evacuation', 'PPE', 'guard', 'barrier', 'ventilation', 'toxic', 'flammable', 'explosion', 'HAZOP', 'SIL', 'ESD', 'PSV', 'relief', 'shutdown', 'interlock', 'NFPA', 'OSHA'],
-            'Dimensional/Tolerancing': ['dimension', 'tolerance', 'clearance', 'offset', 'alignment', 'elevation', 'coordinate', 'datum', 'GD&T', 'flatness', 'perpendicular', 'parallel', 'concentricity', 'runout', 'position', 'profile', 'angularity', 'symmetry', 'mm', 'inch', 'meter', 'radius', 'diameter'],
-            'General/Administrative': ['revision', 'issue', 'approval', 'review', 'comment', 'note', 'reference', 'specification', 'standard', 'code', 'drawing', 'document', 'title', 'date', 'signature', 'stamp', 'mark', 'legend', 'symbol', 'abbreviation', 'general']
+            'Piping/Process': [
+                'pipe', 'piping', 'valve', 'flange', 'flg', 'gasket', 'elbow', 'tee', 'reducer', 
+                'coupling', 'P&ID', 'P&I', 'PFD', 'BOM', 'MTO', 'NPS', 'DN', 'PN', 'SCH', 'schedule', 
+                'SS316L', 'SS304', 'CS', 'flowline', 'header', 'manifold', 'nozzle', 'fitting', 
+                'weld', 'socket', 'butt-weld', 'BW', 'SW', 'THD', 'NPT', 'RF', 'FF', 'RTJ', 'SO', 'WN', 'BL',
+                'threaded', 'nominal', 'bore', 'pressure', 'temperature', 'flow', 'process', 'fluid', 
+                'steam', 'condensate', 'drain', 'spool', 'exp'
+            ],
+            'Electrical/Instrumentation': [
+                'cable', 'wire', 'conduit', 'junction', 'panel', 'switch', 'breaker', 'transformer', 
+                'motor', 'sensor', 'transmitter', 'controller', 'PLC', 'DCS', 'SCADA', 'VFD', 
+                'signal', 'voltage', 'volt', 'current', 'ampere', 'watt', 'circuit', 'grounding', 
+                'earthing', 'GND', 'PE', 'instrument', 'gauge', 'meter', 'thermocouple', 'RTD', 
+                'control valve', 'actuator', 'JB', 'MCC', 'loop', 'I/O', 'tag'
+            ],
+            'Structural/Civil': [
+                'beam', 'column', 'foundation', 'concrete', 'rebar', 'steel', 'structural', 
+                'load', 'anchor', 'bolt', 'plate', 'gusset', 'brace', 'truss', 'frame', 'slab', 
+                'footing', 'pile', 'grout', 'weld', 'connection', 'support', 'hanger', 'clip', 
+                'HSS', 'TOC', 'BOS', 'TOS', 'grid', 'baseplate', 'embed'
+            ],
+            'Safety/HSE': [
+                'safety', 'hazard', 'fire', 'emergency', 'alarm', 'evacuation', 'PPE', 'guard', 
+                'barrier', 'ventilation', 'toxic', 'flammable', 'explosion', 'HAZOP', 'SIL', 
+                'ESD', 'PSV', 'PRV', 'relief', 'shutdown', 'interlock', 'NFPA', 'OSHA'
+            ],
+            'Dimensional/Tolerancing': [
+                'dimension', 'DIM', 'tolerance', 'TOL', 'clearance', 'offset', 'alignment', 
+                'elevation', 'EL', 'CL', 'centerline', 'coordinate', 'datum', 'GD&T', 'flatness', 
+                'perpendicular', 'parallel', 'concentricity', 'runout', 'position', 'profile', 
+                'angularity', 'symmetry', 'mm', 'inch', 'meter', 'radius', 'diameter', 'height', 'width'
+            ],
+            'General/Administrative': [
+                'revision', 'REV', 'issue', 'approval', 'approved', 'review', 'comment', 'note', 
+                'reference', 'REF', 'specification', 'SPEC', 'standard', 'code', 'drawing', 'DWG', 
+                'document', 'title', 'date', 'signature', 'stamp', 'mark', 'legend', 'symbol', 
+                'abbreviation', 'general', 'TYP', 'typical', 'SHT', 'sheet', 'GA', 'ISO'
+            ]
         }
 
     def _rule_based_classify(self, text: str) -> List[CategoryPredictionDTO]:
