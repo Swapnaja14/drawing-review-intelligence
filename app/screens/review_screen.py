@@ -157,11 +157,11 @@ class HumanReviewPage(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background: #FFFFFF; border-left: 1px solid #E2E8F0; }")
+        scroll.setStyleSheet("QScrollArea { background: #1E2235; border-left: 1px solid #2E3654; }")
 
         panel = QFrame()
         panel.setObjectName("ReviewPanel")
-        panel.setStyleSheet("#ReviewPanel { background: #FFFFFF; border: none; }")
+        panel.setStyleSheet("#ReviewPanel { background: #1E2235; border: none; }")
         lay = QVBoxLayout(panel)
         lay.setContentsMargins(24, 20, 24, 24)
         lay.setSpacing(16)
@@ -170,7 +170,7 @@ class HumanReviewPage(QWidget):
         prog_hdr = QHBoxLayout()
         self._prog_lbl = QLabel("Comment 1 of 0")
         self._prog_lbl.setFont(QFont("Inter", 16, QFont.Weight.Bold))
-        self._prog_lbl.setStyleSheet("color: #0F172A;")
+        self._prog_lbl.setStyleSheet("color: #E2E8F0;")
         prog_hdr.addWidget(self._prog_lbl)
         prog_hdr.addStretch()
         lay.addLayout(prog_hdr)
@@ -180,8 +180,8 @@ class HumanReviewPage(QWidget):
         self._prog_bar.setValue(1)
         self._prog_bar.setFixedHeight(8)
         self._prog_bar.setStyleSheet(
-            "QProgressBar { background: #E2E8F0; border-radius: 4px; }"
-            "QProgressBar::chunk { background: #2563EB; border-radius: 4px; }"
+            "QProgressBar { background: #222634; border-radius: 4px; }"
+            "QProgressBar::chunk { background: #3B82F6; border-radius: 4px; }"
         )
         lay.addWidget(self._prog_bar)
 
@@ -189,7 +189,7 @@ class HumanReviewPage(QWidget):
         self._edit_card = QFrame()
         self._edit_card.setObjectName("Card")
         self._edit_card.setStyleSheet(
-            "#Card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; }"
+            "#Card { background: #222634; border: 1px solid #2E3654; border-radius: 12px; }"
         )
         edit_lay = QVBoxLayout(self._edit_card)
         edit_lay.setContentsMargins(20, 18, 20, 18)
@@ -198,7 +198,7 @@ class HumanReviewPage(QWidget):
         # Top ID and Drawing reference
         self._comment_id_lbl = QLabel("")
         self._comment_id_lbl.setFont(QFont("Cascadia Code", 13, QFont.Weight.Bold))
-        self._comment_id_lbl.setStyleSheet("color: #0F172A;")
+        self._comment_id_lbl.setStyleSheet("color: #E2E8F0;")
         edit_lay.addWidget(self._comment_id_lbl)
 
         # OCR Text section
@@ -211,7 +211,7 @@ class HumanReviewPage(QWidget):
         self._ocr_edit.setReadOnly(True)
         self._ocr_edit.setFont(QFont("Cascadia Code", 13))
         self._ocr_edit.setStyleSheet(
-            "QTextEdit { background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 8px; color: #0F172A; padding: 10px; }"
+            "QTextEdit { background: #161925; border: 1px solid #2E3654; border-radius: 8px; color: #E2E8F0; padding: 10px; }"
         )
         edit_lay.addWidget(self._ocr_edit)
 
@@ -244,14 +244,14 @@ class HumanReviewPage(QWidget):
         self._conf_bar.setValue(90)
         self._conf_bar.setFixedHeight(8)
         self._conf_bar.setStyleSheet(
-            "QProgressBar { background: #E2E8F0; border-radius: 4px; }"
-            "QProgressBar::chunk { background: #059669; border-radius: 4px; }"
+            "QProgressBar { background: #1E2235; border-radius: 4px; }"
+            "QProgressBar::chunk { background: #10B981; border-radius: 4px; }"
         )
         conf_row.addWidget(self._conf_bar, 1)
 
         self._conf_lbl = QLabel("—")
         self._conf_lbl.setFont(QFont("Inter", 12, QFont.Weight.Bold))
-        self._conf_lbl.setStyleSheet("color: #059669;")
+        self._conf_lbl.setStyleSheet("color: #10B981;")
         conf_row.addWidget(self._conf_lbl)
         edit_lay.addLayout(conf_row)
 
@@ -259,7 +259,7 @@ class HumanReviewPage(QWidget):
 
         # Status indicator row
         status_card = QFrame()
-        status_card.setStyleSheet("background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 6px;")
+        status_card.setStyleSheet("background: #222634; border: 1px solid #2E3654; border-radius: 10px; padding: 6px;")
         status_lay = QHBoxLayout(status_card)
         status_lay.setContentsMargins(14, 8, 14, 8)
         status_lbl = QLabel("CURRENT REVIEW STATUS:")
@@ -275,7 +275,7 @@ class HumanReviewPage(QWidget):
         self._audit_card = QFrame()
         self._audit_card.setObjectName("Card")
         self._audit_card.setStyleSheet(
-            "#Card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; }"
+            "#Card { background: #222634; border: 1px solid #2E3654; border-radius: 10px; }"
         )
         audit_lay = QVBoxLayout(self._audit_card)
         audit_lay.setContentsMargins(16, 12, 16, 12)
@@ -286,7 +286,7 @@ class HumanReviewPage(QWidget):
         self._audit_toggle_btn.setObjectName("GhostBtn")
         self._audit_toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._audit_toggle_btn.setStyleSheet(
-            "QPushButton { text-align: left; font-weight: 600; font-size: 13px; color: #475569; padding: 0px; border: none; }"
+            "QPushButton { text-align: left; font-weight: 600; font-size: 13px; color: #64748B; padding: 0px; border: none; }"
         )
         self._audit_toggle_btn.clicked.connect(self._toggle_audit_panel)
         audit_hdr_row.addWidget(self._audit_toggle_btn)
@@ -433,6 +433,13 @@ class HumanReviewPage(QWidget):
 
         self._scene.addPixmap(pm)
         self._scene.setSceneRect(QRectF(pm.rect()))
+
+        from app.theme import CURRENT_THEME
+        if CURRENT_THEME == 'dark':
+            dim = self._scene.addRect(self._scene.sceneRect())
+            dim.setBrush(QColor(0, 0, 0, 160))
+            dim.setPen(Qt.PenStyle.NoPen)
+            dim.setZValue(0.5)
 
         width = pm.width()
         height = pm.height()
@@ -731,3 +738,4 @@ class HumanReviewPage(QWidget):
             self._next()
         else:
             super().keyPressEvent(e)
+

@@ -286,7 +286,7 @@ class PdfViewerPage(QWidget):
         lst.setViewMode(QListWidget.ViewMode.IconMode)
         lst.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
         lst.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        lst.setStyleSheet(
+        lst.setObjectName("ActivityList"); lst.setStyleSheet("/* migrated */" 
             "QListWidget { border-top: 1px solid #E2E8F0; border-radius: 0;"
             " background: #FFFFFF; padding: 4px; }"
             "QListWidget::item { border: 2px solid transparent;"

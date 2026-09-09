@@ -63,9 +63,9 @@ class UploadPage(QWidget):
         self._drop.setMinimumHeight(280)
         self._drop.setMaximumWidth(780)
         self._drop.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self._drop.setStyleSheet(
-            "QFrame { background: #F8FAFC; border: 2px dashed #CBD5E1; border-radius: 16px; }"
-            "QFrame:hover { border-color: #2563EB; background: #EFF6FF; }"
+        self._drop.setObjectName("DashedDropZone"); self._drop.setStyleSheet("/* migrated */" 
+            " "
+            " "
         )
         self._drop.file_dropped.connect(self._on_file)
 
@@ -77,13 +77,13 @@ class UploadPage(QWidget):
         icon = QLabel("☁")
         icon.setFont(QFont("Segoe UI Emoji", 48))
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon.setStyleSheet("color: #2563EB;")
+        icon.setObjectName("DropZoneIcon")
         inner.addWidget(icon)
 
         instr = QLabel("Drag & drop a PDF drawing here")
         instr.setFont(QFont("Inter", 18, QFont.Weight.Bold))
         instr.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        instr.setStyleSheet("color: #0F172A;")
+        instr.setObjectName("PageTitle")
         inner.addWidget(instr)
 
         sub = QLabel("Supports single & multi-sheet engineering PDF drawings up to 500 MB")
@@ -119,7 +119,7 @@ class UploadPage(QWidget):
         self._file_card.setObjectName("Card")
         self._file_card.setMaximumWidth(780)
         self._file_card.setStyleSheet(
-            "#Card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; }"
+            "#Card { background: #222634; border: 1px solid #2E3654; border-radius: 12px; }"
         )
         self._file_card.hide()
 
@@ -135,7 +135,7 @@ class UploadPage(QWidget):
         meta.setSpacing(4)
         self._fname = QLabel("filename.pdf")
         self._fname.setFont(QFont("Cascadia Code", 13, QFont.Weight.Bold))
-        self._fname.setStyleSheet("color: #0F172A;")
+        self._fname.setStyleSheet("color: #E2E8F0;")
         meta.addWidget(self._fname)
 
         self._fmeta = QLabel("— · — pages")
@@ -146,7 +146,7 @@ class UploadPage(QWidget):
         self._status_chip = QLabel("READY")
         self._status_chip.setFont(QFont("Inter", 11, QFont.Weight.Bold))
         self._status_chip.setStyleSheet(
-            "color: #059669; background: rgba(5, 150, 105, 0.10); border-radius: 6px; padding: 4px 10px;"
+            "color: #10B981; background: rgba(16, 185, 129, 0.18); border-radius: 6px; padding: 4px 10px;"
         )
         fc_lay.addWidget(self._status_chip)
 
@@ -156,7 +156,7 @@ class UploadPage(QWidget):
         remove_btn.setToolTip("Remove selected drawing")
         remove_btn.setStyleSheet(
             "QToolButton { background: transparent; color: #64748B; font-size: 14px; border-radius: 6px; }"
-            "QToolButton:hover { background: rgba(220, 38, 38, 0.10); color: #DC2626; }"
+            "QToolButton:hover { background: rgba(239, 68, 68, 0.18); color: #EF4444; }"
         )
         remove_btn.clicked.connect(self._clear_file)
         fc_lay.addWidget(remove_btn)
@@ -167,7 +167,7 @@ class UploadPage(QWidget):
         self._proc_container = QFrame()
         self._proc_container.setMaximumWidth(780)
         self._proc_container.setStyleSheet(
-            "background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px;"
+            "background: #222634; border: 1px solid #2E3654; border-radius: 12px;"
         )
         self._proc_container.hide()
 

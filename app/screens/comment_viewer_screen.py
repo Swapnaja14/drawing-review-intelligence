@@ -63,7 +63,7 @@ class CommentHighlightPage(QWidget):
         c_toolbar = QFrame()
         c_toolbar.setFixedHeight(48)
         c_toolbar.setStyleSheet(
-            "background: #FFFFFF; border-bottom: 1px solid #E2E8F0;"
+            "background: #1E2235; border-bottom: 1px solid #2E3654;"
         )
         t_lay = QHBoxLayout(c_toolbar)
         t_lay.setContentsMargins(16, 0, 16, 0)
@@ -71,7 +71,7 @@ class CommentHighlightPage(QWidget):
 
         t_title = QLabel("Drawing Annotation View")
         t_title.setFont(QFont("Inter", 13, QFont.Weight.DemiBold))
-        t_title.setStyleSheet("color: #0F172A;")
+        t_title.setStyleSheet("color: #94A3B8;")
         t_lay.addWidget(t_title)
         t_lay.addStretch()
 
@@ -113,7 +113,7 @@ class CommentHighlightPage(QWidget):
         panel.setObjectName("Card")
         panel.setFixedWidth(390)
         panel.setStyleSheet(
-            "#Card { border-radius:0; border-top:none; border-bottom:none; border-right:none; background:#FFFFFF; border-left: 1px solid #E2E8F0; }"
+            "#Card { border-radius:0; border-top:none; border-bottom:none; border-right:none; background:#1E2235; border-left: 1px solid #2E3654; }"
         )
         panel_lay = QVBoxLayout(panel)
         panel_lay.setContentsMargins(0, 0, 0, 0)
@@ -123,20 +123,20 @@ class CommentHighlightPage(QWidget):
         hdr = QFrame()
         hdr.setFixedHeight(60)
         hdr.setStyleSheet(
-            "background: #F8FAFC; border-bottom: 1px solid #E2E8F0;"
+            "background: #222634; border-bottom: 1px solid #2E3654;"
         )
         hdr_lay = QHBoxLayout(hdr)
         hdr_lay.setContentsMargins(18, 0, 18, 0)
         self._count_lbl = QLabel(f"🔍  {len(self._comments)} Comments Detected")
         self._count_lbl.setFont(QFont("Inter", 14, QFont.Weight.Bold))
-        self._count_lbl.setStyleSheet("color: #0F172A;")
+        self._count_lbl.setStyleSheet("color: #E2E8F0;")
         hdr_lay.addWidget(self._count_lbl)
         panel_lay.addWidget(hdr)
 
         # Filter Chips Toolbar
         filter_bar = QFrame()
         filter_bar.setStyleSheet(
-            "background: #FFFFFF; border-bottom: 1px solid #E2E8F0;"
+            "background: #1E2235; border-bottom: 1px solid #2E3654;"
         )
         fb_lay = QHBoxLayout(filter_bar)
         fb_lay.setContentsMargins(12, 10, 12, 10)
@@ -149,10 +149,10 @@ class CommentHighlightPage(QWidget):
             btn.setChecked(ftag == "All")
             btn.setFixedHeight(28)
             btn.setStyleSheet(
-                "QPushButton { background: #F1F5F9; color: #475569; border: 1px solid #E2E8F0;"
+                "QPushButton { background: #222634; color: #94A3B8; border: 1px solid #2E3654;"
                 "border-radius: 6px; padding: 2px 10px; font-size: 12px; font-weight: 600; }"
-                "QPushButton:hover { color: #0F172A; border-color: #2563EB; }"
-                "QPushButton:checked { background: #2563EB; color: #FFFFFF; border-color: #2563EB; }"
+                "QPushButton:hover { color: #E2E8F0; border-color: #3B82F6; }"
+                "QPushButton:checked { background: #3B82F6; color: #FFFFFF; border-color: #3B82F6; }"
             )
             btn.clicked.connect(self._make_filter_handler(ftag))
             self._filter_btns[ftag] = btn
@@ -164,10 +164,10 @@ class CommentHighlightPage(QWidget):
         self._list = QListWidget()
         self._list.setSpacing(10)
         self._list.setStyleSheet(
-            "QListWidget { border:none; background: #F8FAFC; padding: 12px; }"
+            "QListWidget { border:none; background: #1E2235; padding: 12px; }"
             "QListWidget::item { background: transparent; border-radius: 10px; padding: 0px; margin-bottom: 6px; }"
-            "QListWidget::item:hover { background: #F1F5F9; }"
-            "QListWidget::item:selected { background: rgba(37, 99, 235, 0.08); }"
+            "QListWidget::item:hover { background: #222634; }"
+            "QListWidget::item:selected { background: rgba(59, 130, 246, 0.18); }"
         )
         self._list.currentRowChanged.connect(self._on_list_select)
         panel_lay.addWidget(self._list, 1)
@@ -234,6 +234,13 @@ class CommentHighlightPage(QWidget):
         self._scene.setSceneRect(QRectF(pm.rect()))
         self._box_items: dict = {}
 
+        from app.theme import CURRENT_THEME
+        if CURRENT_THEME == 'dark':
+            dim = self._scene.addRect(self._scene.sceneRect())
+            dim.setBrush(QColor(0, 0, 0, 160))
+            dim.setPen(Qt.PenStyle.NoPen)
+            dim.setZValue(0.5)
+
         width = pm.width()
         height = pm.height()
 
@@ -278,8 +285,8 @@ class CommentHighlightPage(QWidget):
         card = QFrame()
         card.setObjectName("Card")
         card.setStyleSheet(
-            "QFrame#Card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; }"
-            "QFrame#Card:hover { border-color: #2563EB; background: #F8FAFC; }"
+            "QFrame#Card { background: #222634; border: 1px solid #2E3654; border-radius: 10px; }"
+            "QFrame#Card:hover { border-color: #3B82F6; background: #2A2F42; }"
         )
         lay = QVBoxLayout(card)
         lay.setContentsMargins(14, 12, 14, 12)
@@ -382,3 +389,4 @@ class _CommentAdapter:
             self.ocr_text   = getattr(comment, "ocr_text", "")
             self.label      = getattr(comment, "label", "comment_red")
             self.confidence = getattr(comment, "confidence", 0.0)
+

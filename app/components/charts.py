@@ -60,16 +60,17 @@ _CAT_COLORS: dict[str, str] = {
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 def _styled_chart(title: str = "") -> "QChart":
-    """Return a QChart pre-styled for the light/white enterprise theme."""
+    from app.theme import CURRENT_THEME, THEMES
+    t = THEMES[CURRENT_THEME]
     chart = QChart()
     chart.setTitle(title)
-    chart.setBackgroundBrush(QColor("#FFFFFF"))
-    chart.setPlotAreaBackgroundBrush(QColor("#F8FAFC"))
+    chart.setBackgroundBrush(QColor(t['bg_elevated']))
+    chart.setPlotAreaBackgroundBrush(QColor(t['bg_secondary']))
     chart.setPlotAreaBackgroundVisible(True)
-    chart.legend().setLabelColor(QColor("#334155"))
+    chart.legend().setLabelColor(QColor(t['text_secondary']))
     chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
     if title:
-        chart.setTitleBrush(QColor("#0F172A"))
+        chart.setTitleBrush(QColor(t['text_primary']))
         chart.setTitleFont(
             QFont("Segoe UI Variable", 13, QFont.Weight.DemiBold)
         )
@@ -79,17 +80,19 @@ def _styled_chart(title: str = "") -> "QChart":
 
 
 def _chart_view(chart: "QChart") -> "QChartView":
-    """Wrap a QChart in a transparent, antialiased QChartView."""
+    from app.theme import CURRENT_THEME, THEMES
+    t = THEMES[CURRENT_THEME]
     view = QChartView(chart)
     view.setRenderHint(QPainter.RenderHint.Antialiasing)
-    view.setStyleSheet("background: #FFFFFF; border:none; border-radius: 12px;")
+    view.setStyleSheet(f"background: {t['bg_elevated']}; border:none; border-radius: 12px;")
     return view
 
 
-def _axis_style(axis, color: str = "#475569") -> None:
-    """Apply consistent axis label and grid-line styling for light mode."""
-    axis.setLabelsColor(QColor(color))
-    axis.setGridLineColor(QColor("#E2E8F0"))
+def _axis_style(axis) -> None:
+    from app.theme import CURRENT_THEME, THEMES
+    t = THEMES[CURRENT_THEME]
+    axis.setLabelsColor(QColor(t['text_secondary']))
+    axis.setGridLineColor(QColor(t['border']))
     axis.setLabelsFont(QFont("Segoe UI", 10))
 
 
@@ -106,13 +109,10 @@ def no_chart_label(text: str) -> QFrame:
     """
     f = QFrame()
     f.setObjectName("Card")
-    f.setStyleSheet(
-        "QFrame#Card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; }"
-    )
     lay = QVBoxLayout(f)
     lbl = QLabel(f"📊  {text}\n(PySide6.QtCharts not available)")
     lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    lbl.setStyleSheet("color: #64748B; font-size:14px;")
+    lbl.setObjectName("SubCaption")
     lay.addWidget(lbl)
     return f
 
@@ -435,7 +435,7 @@ def build_category_pie(
                 has_slices = True
                 slice_ = series.append(f"{cat_name} ({count})", count)
                 slice_.setColor(QColor(color))
-                slice_.setLabelColor(QColor("#0F172A"))
+                from app.theme import THEMES, CURRENT_THEME; slice_.setLabelColor(QColor(THEMES[CURRENT_THEME]['text_primary']))
                 slice_.setLabelFont(QFont("Segoe UI", 10))
 
     elif isinstance(data, dict) and data:
@@ -444,14 +444,15 @@ def build_category_pie(
                 has_slices = True
                 slice_ = series.append(f"{cat} ({count})", count)
                 slice_.setColor(QColor(_CAT_COLORS.get(cat, "#A6A9B1")))
-                slice_.setLabelColor(QColor("#0F172A"))
+                from app.theme import THEMES, CURRENT_THEME; slice_.setLabelColor(QColor(THEMES[CURRENT_THEME]['text_primary']))
                 slice_.setLabelFont(QFont("Segoe UI", 10))
 
     if not has_slices:
         slice_ = series.append("No Data", 1)
-        slice_.setColor(QColor("#E2E8F0"))
-        slice_.setLabelColor(QColor("#64748B"))
+        from app.theme import THEMES, CURRENT_THEME; slice_.setColor(QColor(THEMES[CURRENT_THEME]['bg_hover']))
+        from app.theme import THEMES, CURRENT_THEME; slice_.setLabelColor(QColor(THEMES[CURRENT_THEME]['text_secondary']))
         slice_.setLabelFont(QFont("Segoe UI", 10))
 
     chart.addSeries(series)
     return _chart_view(chart)
+

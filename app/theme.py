@@ -10,27 +10,27 @@ from PySide6.QtCore import QObject, Signal
 
 THEMES = {
     "dark": {
-        "bg_primary":    "#111317",
-        "bg_secondary":  "#181B22",
-        "bg_elevated":   "#20252F",
-        "bg_hover":      "#282E3B",
-        "border":        "#2F3545",
-        "border_subtle": "#252B38",
-        "text_primary":  "#F3F4F6",
-        "text_secondary":"#9CA3AF",
-        "text_muted":    "#6B7280",
+        "bg_primary":    "#161925",
+        "bg_secondary":  "#1E2235",
+        "bg_elevated":   "#222634",
+        "bg_hover":      "#2A2F42",
+        "border":        "#2E3654",
+        "border_subtle": "#252B3D",
+        "text_primary":  "#E2E8F0",
+        "text_secondary":"#94A3B8",
+        "text_muted":    "#64748B",
         "accent":        "#3B82F6",
         "accent_hover":  "#60A5FA",
-        "accent_muted":  "rgba(59, 130, 246, 0.15)",
+        "accent_muted":  "rgba(59, 130, 246, 0.18)",
         "success":       "#10B981",
-        "success_muted": "rgba(16, 185, 129, 0.15)",
+        "success_muted": "rgba(16, 185, 129, 0.18)",
         "warning":       "#F59E0B",
-        "warning_muted": "rgba(245, 158, 11, 0.15)",
+        "warning_muted": "rgba(245, 158, 11, 0.18)",
         "danger":        "#EF4444",
-        "danger_muted":  "rgba(239, 68, 68, 0.15)",
-        "info":          "#6366F1",
-        "shadow":        "rgba(0, 0, 0, 0.4)",
-        "scrim":         "rgba(0, 0, 0, 0.6)",
+        "danger_muted":  "rgba(239, 68, 68, 0.18)",
+        "info":          "#818CF8",
+        "shadow":        "rgba(0, 0, 0, 0.45)",
+        "scrim":         "rgba(0, 0, 0, 0.65)",
     },
     "light": {
         "bg_primary":    "#F8FAFC",
@@ -498,15 +498,68 @@ QStatusBar {{
     border-top: 1px solid {t['border']};
     padding: 4px 12px;
 }}
+/* ── Semantic Application Components ────────────────────────────── */
+#DashedDropZone {{ background-color: {t['bg_secondary']}; border: 2px dashed {t['border']}; border-radius: 16px; }}
+#DashedDropZone:hover {{ border-color: {t['accent']}; background-color: {t['bg_hover']}; }}
+#DropZoneIcon {{ color: {t['accent']}; }}
+
+#ActivityList {{ border: none; background: transparent; }}
+#ActivityList::item {{ background: {t['bg_elevated']}; border: 1px solid {t['border']}; border-radius: 8px; padding: 10px; margin-bottom: 4px; }}
+#ActivityList::item:hover {{ border-color: {t['accent']}; background: {t['bg_hover']}; }}
+
+#ActivityTag {{ color: {t['accent']}; background: {t['accent_muted']}; border-radius: 4px; padding: 2px 6px; }}
+
+#StatusReady {{ color: {t['success']}; background: {t['success_muted']}; border-radius: 6px; padding: 4px 10px; }}
+#RemoveBtn {{ background: transparent; color: {t['text_secondary']}; font-size: 14px; border-radius: 6px; }}
+#RemoveBtn:hover {{ background: {t['danger_muted']}; color: {t['danger']}; }}
+
+#ProgressBar {{ background: {t['bg_secondary']}; border-radius: 3px; }}
+#ProgressBar::chunk {{ background: {t['accent']}; border-radius: 3px; }}
+#ProgressBarSuccess {{ background: {t['bg_secondary']}; border-radius: 4px; }}
+#ProgressBarSuccess::chunk {{ background: {t['success']}; border-radius: 4px; }}
+
+#Toolbar {{ background: {t['bg_secondary']}; border-bottom: 1px solid {t['border']}; border-top: none; border-left: none; border-right: none; border-radius: 0; }}
+#FilterBar {{ background: {t['bg_secondary']}; border-bottom: 1px solid {t['border']}; }}
+#FilterButton {{ background: {t['bg_hover']}; color: {t['text_secondary']}; border: 1px solid {t['border']}; border-radius: 6px; padding: 2px 10px; font-size: 12px; font-weight: 600; }}
+#FilterButton:hover {{ color: {t['text_primary']}; border-color: {t['accent']}; }}
+#FilterButton:checked {{ background: {t['accent']}; color: #FFFFFF; border-color: {t['accent']}; }}
+
+#CommentList {{ border: none; background: {t['bg_secondary']}; padding: 12px; }}
+#CommentList::item {{ background: transparent; border-radius: 10px; padding: 0px; margin-bottom: 6px; }}
+#CommentList::item:hover {{ background: {t['bg_hover']}; }}
+#CommentList::item:selected {{ background: {t['accent_muted']}; }}
+
+#ThumbnailList {{ border-top: 1px solid {t['border']}; border-radius: 0; background: {t['bg_secondary']}; padding: 4px; }}
+#ThumbnailList::item {{ border: 2px solid transparent; border-radius: 6px; margin: 4px; color: {t['text_secondary']}; font-size: 11px; font-weight: 600; }}
+#ThumbnailList::item:hover {{ background: {t['bg_hover']}; border-color: {t['border']}; }}
+#ThumbnailList::item:selected {{ border-color: {t['accent']}; background: {t['accent_muted']}; color: {t['accent']}; }}
+
+#ReviewPanel {{ background: {t['bg_secondary']}; border: none; }}
+#ReviewScroll {{ background: {t['bg_secondary']}; border-left: 1px solid {t['border']}; }}
+#OcrBox {{ background: {t['bg_primary']}; border: 1px solid {t['border']}; border-radius: 8px; color: {t['text_primary']}; padding: 10px; }}
+
+#FormatCard {{ background-color: {t['bg_elevated']}; border: 1px solid {t['border']}; border-radius: 12px; }}
+#FormatCard:hover {{ border-color: {t['accent']}; background-color: {t['bg_hover']}; }}
+#FormatCardSelected {{ background-color: {t['accent_muted']}; border: 2px solid {t['accent']}; border-radius: 12px; }}
+
+#Indicator {{ color: {t['text_secondary']}; background-color: {t['bg_hover']}; border: 1px solid {t['border']}; border-radius: 6px; padding: 4px 12px; }}
+#IndicatorSelected {{ color: #FFFFFF; background-color: {t['accent']}; border-radius: 6px; padding: 4px 14px; font-weight: bold; }}
+
+#TopAvatarBtn {{ background: {t['bg_elevated']}; border: 1px solid {t['border']}; border-radius: 10px; color: {t['text_primary']}; padding: 4px 12px; }}
+#TopAvatarBtn:hover {{ background: {t['bg_hover']}; border-color: {t['accent']}; }}
+
+#SearchBox {{ background: {t['bg_hover']}; border: 1px solid transparent; border-radius: 8px; color: {t['text_primary']}; padding: 6px 14px 6px 32px; font-size: 13px; }}
+#SearchBox:focus {{ background: {t['bg_elevated']}; border: 1px solid {t['accent']}; }}
 """
 
+CURRENT_THEME = 'dark'
 class ThemeManager(QObject):
     theme_changed = Signal(str)
 
     def __init__(self, app: QApplication):
         super().__init__()
         self._app = app
-        self._current = "light"
+        self._current = "dark"
 
     @property
     def current(self) -> str:
@@ -518,8 +571,12 @@ class ThemeManager(QObject):
 
     def apply(self, theme: str = "dark") -> None:
         self._current = theme
+        global CURRENT_THEME
+        CURRENT_THEME = theme
         self._app.setStyleSheet(_build_qss(THEMES[theme]))
         self.theme_changed.emit(theme)
 
     def toggle(self) -> None:
         self.apply("light" if self._current == "dark" else "dark")
+
+

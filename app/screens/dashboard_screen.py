@@ -50,7 +50,7 @@ def _card(parent=None) -> QFrame:
     f = QFrame(parent)
     f.setObjectName("Card")
     f.setStyleSheet(
-        "#Card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; }"
+        "#Card { background: #222634; border: 1px solid #2E3654; border-radius: 12px; }"
     )
     return f
 
@@ -58,7 +58,7 @@ def _card(parent=None) -> QFrame:
 def _h2(text: str) -> QLabel:
     lbl = QLabel(text)
     lbl.setFont(QFont("Inter", 16, QFont.Weight.Bold))
-    lbl.setStyleSheet("color: #0F172A;")
+    lbl.setStyleSheet("color: #E2E8F0;")
     lbl.setObjectName("CardHeader")
     return lbl
 
@@ -90,7 +90,7 @@ class DashboardPage(QWidget):
         hdr_box.setSpacing(4)
         title = QLabel("Engineering Drawing Review Dashboard")
         title.setFont(QFont("Inter", 24, QFont.Weight.Bold))
-        title.setStyleSheet("color: #0F172A;")
+        title.setObjectName("PageTitle")
         hdr_box.addWidget(title)
 
         subtitle = QLabel("AI-driven drawing review comment analysis, OCR extraction status, and verification metrics.")
@@ -360,10 +360,10 @@ class DashboardPage(QWidget):
     def _build_activity_list(self) -> QListWidget:
         lst = QListWidget()
         lst.setSpacing(6)
-        lst.setStyleSheet(
-            "QListWidget { border:none; background:transparent; }"
-            "QListWidget::item { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; margin-bottom: 4px; }"
-            "QListWidget::item:hover { border-color: #2563EB; background: #F1F5F9; }"
+        lst.setObjectName("ActivityList"); lst.setStyleSheet("/* migrated */" 
+            " "
+            " "
+            " "
         )
         for act in DEFAULT_ACTIVITIES:
             item = QListWidgetItem()
@@ -377,7 +377,7 @@ class DashboardPage(QWidget):
             tag = QLabel(act.get("tag", "System"))
             tag.setFont(QFont("Inter", 10, QFont.Weight.Bold))
             tag.setStyleSheet(
-                "color: #2563EB; background: rgba(37, 99, 235, 0.08); border-radius: 4px; padding: 2px 6px;"
+                "color: #60A5FA; background: rgba(59, 130, 246, 0.18); border-radius: 4px; padding: 2px 6px;"
             )
             top.addWidget(tag)
             top.addStretch()
@@ -391,7 +391,7 @@ class DashboardPage(QWidget):
             desc = QLabel(act["text"])
             desc.setFont(QFont("Inter", 12))
             desc.setWordWrap(True)
-            desc.setStyleSheet("color: #334155;")
+            desc.setStyleSheet("color: #94A3B8;")
             lay.addWidget(desc)
 
             lst.addItem(item)
@@ -406,13 +406,13 @@ class DashboardPage(QWidget):
         hdr = QHBoxLayout()
         name = QLabel(job["name"])
         name.setFont(QFont("Inter", 13, QFont.Weight.Medium))
-        name.setStyleSheet("color: #0F172A;")
+        name.setStyleSheet("color: #E2E8F0;")
         hdr.addWidget(name)
         hdr.addStretch()
 
         stat = QLabel("● Ready")
         stat.setFont(QFont("Inter", 11, QFont.Weight.Bold))
-        stat.setStyleSheet("color: #059669;")
+        stat.setStyleSheet("color: #10B981;")
         hdr.addWidget(stat)
         lay.addLayout(hdr)
 
@@ -421,8 +421,8 @@ class DashboardPage(QWidget):
         bar.setValue(job["progress"])
         bar.setFixedHeight(6)
         bar.setStyleSheet(
-            "QProgressBar { background: #E2E8F0; border-radius: 3px; }"
-            "QProgressBar::chunk { background: #059669; border-radius: 3px; }"
+            "QProgressBar { background: #1E2235; border-radius: 3px; }"
+            "QProgressBar::chunk { background: #10B981; border-radius: 3px; }"
         )
         lay.addWidget(bar)
         lay.addSpacing(6)

@@ -88,21 +88,18 @@ class DrawingMetadataPanel(QScrollArea):
     def _append_fields(self, fields: Sequence[Tuple[str, str]]) -> None:
         for key, val in fields:
             row_card = QFrame()
-            row_card.setStyleSheet(
-                "QFrame { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; }"
-            )
+            row_card.setObjectName("Card")
             r_lay = QVBoxLayout(row_card)
             r_lay.setContentsMargins(12, 10, 12, 10)
             r_lay.setSpacing(4)
 
             k_lbl = QLabel(key.upper())
+            k_lbl.setObjectName("FormLabel")
             k_lbl.setFont(QFont("Inter", 10, QFont.Weight.Bold))
-            k_lbl.setStyleSheet("color: #9CA3AF; letter-spacing: 0.5px; border: none; background: transparent;")
             r_lay.addWidget(k_lbl)
 
             v_lbl = QLabel(str(val))
             v_lbl.setFont(QFont("Inter", 13, QFont.Weight.Medium))
-            v_lbl.setStyleSheet("color: #F3F4F6; border: none; background: transparent;")
             v_lbl.setWordWrap(True)
             v_lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             r_lay.addWidget(v_lbl)

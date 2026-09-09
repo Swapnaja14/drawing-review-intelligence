@@ -34,8 +34,8 @@ class PdfToolbar(QFrame):
         self.setFixedHeight(54)
         self.setObjectName("Card")
         self.setStyleSheet(
-            "#Card { background: #FFFFFF; border-radius: 0; border-left: none;"
-            " border-right: none; border-top: none; border-bottom: 1px solid #E2E8F0; }"
+            "#Card { background: #1E2235; border-radius: 0; border-left: none;"
+            " border-right: none; border-top: none; border-bottom: 1px solid #2E3654; }"
         )
 
         lay = QHBoxLayout(self)
@@ -101,7 +101,7 @@ class PdfToolbar(QFrame):
         self._page_field.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._page_field.setFont(QFont("Cascadia Code", 12, QFont.Weight.Bold))
         self._page_field.setStyleSheet(
-            "QLineEdit { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; color: #0F172A; }"
+            "QLineEdit { background: #161925; border: 1px solid #2E3654; border-radius: 6px; color: #E2E8F0; }"
         )
         self._page_field.editingFinished.connect(self._on_page_edited)
         lay.addWidget(self._page_field)
