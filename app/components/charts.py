@@ -60,16 +60,16 @@ _CAT_COLORS: dict[str, str] = {
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 def _styled_chart(title: str = "") -> "QChart":
-    """Return a QChart pre-styled for the dark theme."""
+    """Return a QChart pre-styled for the light/white enterprise theme."""
     chart = QChart()
     chart.setTitle(title)
-    chart.setBackgroundBrush(QColor("#2D2F34"))
-    chart.setPlotAreaBackgroundBrush(QColor("#26272B"))
+    chart.setBackgroundBrush(QColor("#FFFFFF"))
+    chart.setPlotAreaBackgroundBrush(QColor("#F8FAFC"))
     chart.setPlotAreaBackgroundVisible(True)
-    chart.legend().setLabelColor(QColor("#A6A9B1"))
+    chart.legend().setLabelColor(QColor("#334155"))
     chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
     if title:
-        chart.setTitleBrush(QColor("#F2F3F5"))
+        chart.setTitleBrush(QColor("#0F172A"))
         chart.setTitleFont(
             QFont("Segoe UI Variable", 13, QFont.Weight.DemiBold)
         )
@@ -82,14 +82,14 @@ def _chart_view(chart: "QChart") -> "QChartView":
     """Wrap a QChart in a transparent, antialiased QChartView."""
     view = QChartView(chart)
     view.setRenderHint(QPainter.RenderHint.Antialiasing)
-    view.setStyleSheet("background: transparent; border:none;")
+    view.setStyleSheet("background: #FFFFFF; border:none; border-radius: 12px;")
     return view
 
 
-def _axis_style(axis, color: str = "#A6A9B1") -> None:
-    """Apply consistent axis label and grid-line styling."""
+def _axis_style(axis, color: str = "#475569") -> None:
+    """Apply consistent axis label and grid-line styling for light mode."""
     axis.setLabelsColor(QColor(color))
-    axis.setGridLineColor(QColor("#3A3C42"))
+    axis.setGridLineColor(QColor("#E2E8F0"))
     axis.setLabelsFont(QFont("Segoe UI", 10))
 
 
@@ -106,12 +106,16 @@ def no_chart_label(text: str) -> QFrame:
     """
     f = QFrame()
     f.setObjectName("Card")
+    f.setStyleSheet(
+        "QFrame#Card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; }"
+    )
     lay = QVBoxLayout(f)
     lbl = QLabel(f"📊  {text}\n(PySide6.QtCharts not available)")
     lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    lbl.setStyleSheet("color:#A6A9B1; font-size:14px;")
+    lbl.setStyleSheet("color: #64748B; font-size:14px;")
     lay.addWidget(lbl)
     return f
+
 
 
 def build_pareto_chart(
@@ -431,7 +435,7 @@ def build_category_pie(
                 has_slices = True
                 slice_ = series.append(f"{cat_name} ({count})", count)
                 slice_.setColor(QColor(color))
-                slice_.setLabelColor(QColor("#F2F3F5"))
+                slice_.setLabelColor(QColor("#0F172A"))
                 slice_.setLabelFont(QFont("Segoe UI", 10))
 
     elif isinstance(data, dict) and data:
@@ -440,13 +444,13 @@ def build_category_pie(
                 has_slices = True
                 slice_ = series.append(f"{cat} ({count})", count)
                 slice_.setColor(QColor(_CAT_COLORS.get(cat, "#A6A9B1")))
-                slice_.setLabelColor(QColor("#F2F3F5"))
+                slice_.setLabelColor(QColor("#0F172A"))
                 slice_.setLabelFont(QFont("Segoe UI", 10))
 
     if not has_slices:
         slice_ = series.append("No Data", 1)
-        slice_.setColor(QColor("#4A4D55"))
-        slice_.setLabelColor(QColor("#A6A9B1"))
+        slice_.setColor(QColor("#E2E8F0"))
+        slice_.setLabelColor(QColor("#64748B"))
         slice_.setLabelFont(QFont("Segoe UI", 10))
 
     chart.addSeries(series)

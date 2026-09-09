@@ -72,10 +72,10 @@ class PdfViewerPage(QWidget):
         )
         self._pm_item = None
         self._load_page(1)
-        viewer_row.addWidget(self._view, 3)
+        viewer_row.addWidget(self._view, 4)
 
         # Metadata panel
-        self._meta_panel = DrawingMetadataPanel()
+        self._meta_panel = DrawingMetadataPanel(fixed_width=310)
         viewer_row.addWidget(self._meta_panel)
 
         root.addLayout(viewer_row, 1)
@@ -287,11 +287,12 @@ class PdfViewerPage(QWidget):
         lst.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
         lst.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         lst.setStyleSheet(
-            "QListWidget { border-top: 1px solid #3A3C42; border-radius:0;"
-            " background:#26272B; }"
-            "QListWidget::item { border:2px solid transparent;"
-            " border-radius:4px; margin:4px; }"
-            "QListWidget::item:selected { border-color:#3E9BFF; }"
+            "QListWidget { border-top: 1px solid #E2E8F0; border-radius: 0;"
+            " background: #FFFFFF; padding: 4px; }"
+            "QListWidget::item { border: 2px solid transparent;"
+            " border-radius: 6px; margin: 4px; color: #475569; font-size: 11px; font-weight: 600; }"
+            "QListWidget::item:hover { background: #F1F5F9; border-color: #E2E8F0; }"
+            "QListWidget::item:selected { border-color: #2563EB; background: rgba(37, 99, 235, 0.08); color: #2563EB; }"
         )
         lst.currentRowChanged.connect(
             lambda r: self._goto_page(r + 1) if r >= 0 else None

@@ -37,7 +37,7 @@ def main():
 
     # ── Theme ─────────────────────────────────────────────────────
     theme = ThemeManager(app)
-    theme.apply("dark")          # default dark theme
+    theme.apply("light")         # default light (white enterprise) theme
 
     # ── Splash ────────────────────────────────────────────────────
     splash = SplashScreen()

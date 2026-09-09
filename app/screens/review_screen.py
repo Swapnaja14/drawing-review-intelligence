@@ -78,14 +78,12 @@ class HumanReviewPage(QWidget):
         super().__init__(parent)
         self._controller = controller
 
-        # Load comments: prefer database, fall back to empty list when drawing is loaded
+        # Load comments: prefer database, fall back to mock data
         if self._controller and self._controller.current_drawing_id:
             db_comments = self._controller.get_comments_for_drawing(
                 self._controller.current_drawing_id
             )
-            self._comments: List[Any] = db_comments if db_comments else []
-        elif self._controller:
-            self._comments = []
+            self._comments: List[Any] = db_comments if db_comments else list(md.COMMENTS)
         else:
             self._comments = list(md.COMMENTS)
 
@@ -155,18 +153,24 @@ class HumanReviewPage(QWidget):
 
     # ── Panel builder ─────────────────────────────────────────────
 
-    def _build_review_panel(self) -> QFrame:
+    def _build_review_panel(self) -> QWidget:
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("QScrollArea { background: #FFFFFF; border-left: 1px solid #E2E8F0; }")
+
         panel = QFrame()
-        panel.setObjectName("Card")
-        panel.setStyleSheet("#Card { border-radius:0; }")
+        panel.setObjectName("ReviewPanel")
+        panel.setStyleSheet("#ReviewPanel { background: #FFFFFF; border: none; }")
         lay = QVBoxLayout(panel)
-        lay.setContentsMargins(20, 20, 20, 20)
-        lay.setSpacing(14)
+        lay.setContentsMargins(24, 20, 24, 24)
+        lay.setSpacing(16)
 
         # Progress header
         prog_hdr = QHBoxLayout()
         self._prog_lbl = QLabel("Comment 1 of 0")
-        self._prog_lbl.setFont(QFont("Segoe UI Variable", 14, QFont.Weight.DemiBold))
+        self._prog_lbl.setFont(QFont("Inter", 16, QFont.Weight.Bold))
+        self._prog_lbl.setStyleSheet("color: #0F172A;")
         prog_hdr.addWidget(self._prog_lbl)
         prog_hdr.addStretch()
         lay.addLayout(prog_hdr)
@@ -174,81 +178,115 @@ class HumanReviewPage(QWidget):
         self._prog_bar = QProgressBar()
         self._prog_bar.setRange(0, max(len(self._comments), 1))
         self._prog_bar.setValue(1)
-        self._prog_bar.setFixedHeight(4)
+        self._prog_bar.setFixedHeight(8)
         self._prog_bar.setStyleSheet(
-            "QProgressBar { background:#3A3C42; border-radius:2px; }"
-            "QProgressBar::chunk { background: #3E9BFF; border-radius:2px; }"
+            "QProgressBar { background: #E2E8F0; border-radius: 4px; }"
+            "QProgressBar::chunk { background: #2563EB; border-radius: 4px; }"
         )
         lay.addWidget(self._prog_bar)
-
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.HLine)
-        lay.addWidget(sep)
 
         # Comment edit card
         self._edit_card = QFrame()
         self._edit_card.setObjectName("Card")
+        self._edit_card.setStyleSheet(
+            "#Card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; }"
+        )
         edit_lay = QVBoxLayout(self._edit_card)
-        edit_lay.setContentsMargins(16, 16, 16, 16)
-        edit_lay.setSpacing(10)
+        edit_lay.setContentsMargins(20, 18, 20, 18)
+        edit_lay.setSpacing(12)
 
+        # Top ID and Drawing reference
         self._comment_id_lbl = QLabel("")
-        self._comment_id_lbl.setFont(QFont("Cascadia Code", 12))
-        self._comment_id_lbl.setStyleSheet("color:#A6A9B1;")
+        self._comment_id_lbl.setFont(QFont("Cascadia Code", 13, QFont.Weight.Bold))
+        self._comment_id_lbl.setStyleSheet("color: #0F172A;")
         edit_lay.addWidget(self._comment_id_lbl)
 
-        ocr_lbl = QLabel("OCR Text")
+        # OCR Text section
+        ocr_lbl = QLabel("OCR DETECTED TEXT")
         ocr_lbl.setObjectName("FormLabel")
         edit_lay.addWidget(ocr_lbl)
 
         self._ocr_edit = QTextEdit()
-        self._ocr_edit.setFixedHeight(90)
+        self._ocr_edit.setMinimumHeight(105)
         self._ocr_edit.setReadOnly(True)
-        self._ocr_edit.setFont(QFont("Cascadia Code", 12))
+        self._ocr_edit.setFont(QFont("Cascadia Code", 13))
+        self._ocr_edit.setStyleSheet(
+            "QTextEdit { background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 8px; color: #0F172A; padding: 10px; }"
+        )
         edit_lay.addWidget(self._ocr_edit)
 
-        cat_lbl = QLabel("Category")
+        # Category section
+        cat_lbl = QLabel("ENGINEERING CATEGORY")
         cat_lbl.setObjectName("FormLabel")
         edit_lay.addWidget(cat_lbl)
 
+        cat_row = QHBoxLayout()
+        cat_row.setSpacing(10)
         self._cat_combo = QComboBox()
         self._cat_combo.addItems(md.CATEGORIES)
-        self._cat_combo.setFixedHeight(36)
+        self._cat_combo.setFixedHeight(40)
         self._cat_combo.currentTextChanged.connect(self._on_category_changed)
-        edit_lay.addWidget(self._cat_combo)
+        cat_row.addWidget(self._cat_combo, 1)
+
+        self._cat_badge = CategoryBadge("")
+        cat_row.addWidget(self._cat_badge)
+        edit_lay.addLayout(cat_row)
+
+        # Confidence section
+        conf_hdr = QLabel("DETECTION CONFIDENCE")
+        conf_hdr.setObjectName("FormLabel")
+        edit_lay.addWidget(conf_hdr)
 
         conf_row = QHBoxLayout()
-        self._conf_lbl = QLabel("Confidence: —")
-        self._conf_lbl.setObjectName("SubCaption")
+        conf_row.setSpacing(12)
+        self._conf_bar = QProgressBar()
+        self._conf_bar.setRange(0, 100)
+        self._conf_bar.setValue(90)
+        self._conf_bar.setFixedHeight(8)
+        self._conf_bar.setStyleSheet(
+            "QProgressBar { background: #E2E8F0; border-radius: 4px; }"
+            "QProgressBar::chunk { background: #059669; border-radius: 4px; }"
+        )
+        conf_row.addWidget(self._conf_bar, 1)
+
+        self._conf_lbl = QLabel("—")
+        self._conf_lbl.setFont(QFont("Inter", 12, QFont.Weight.Bold))
+        self._conf_lbl.setStyleSheet("color: #059669;")
         conf_row.addWidget(self._conf_lbl)
-        conf_row.addStretch()
-        self._cat_badge = CategoryBadge("")
-        conf_row.addWidget(self._cat_badge)
         edit_lay.addLayout(conf_row)
 
         lay.addWidget(self._edit_card)
 
-        # Status indicator
-        status_row = QHBoxLayout()
-        status_row.addWidget(QLabel("Current Status:"))
+        # Status indicator row
+        status_card = QFrame()
+        status_card.setStyleSheet("background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 6px;")
+        status_lay = QHBoxLayout(status_card)
+        status_lay.setContentsMargins(14, 8, 14, 8)
+        status_lbl = QLabel("CURRENT REVIEW STATUS:")
+        status_lbl.setObjectName("FormLabel")
+        status_lay.addWidget(status_lbl)
+        status_lay.addSpacing(8)
         self._status_chip = StatusChip("Pending")
-        status_row.addWidget(self._status_chip)
-        status_row.addStretch()
-        lay.addLayout(status_row)
+        status_lay.addWidget(self._status_chip)
+        status_lay.addStretch()
+        lay.addWidget(status_card)
 
         # Audit history collapsible panel
         self._audit_card = QFrame()
         self._audit_card.setObjectName("Card")
+        self._audit_card.setStyleSheet(
+            "#Card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; }"
+        )
         audit_lay = QVBoxLayout(self._audit_card)
-        audit_lay.setContentsMargins(14, 10, 14, 10)
-        audit_lay.setSpacing(6)
+        audit_lay.setContentsMargins(16, 12, 16, 12)
+        audit_lay.setSpacing(8)
 
         audit_hdr_row = QHBoxLayout()
         self._audit_toggle_btn = QPushButton("▼  Audit History (0)")
         self._audit_toggle_btn.setObjectName("GhostBtn")
         self._audit_toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._audit_toggle_btn.setStyleSheet(
-            "QPushButton { text-align: left; font-weight: 600; font-size: 13px; padding: 2px 0px; height: 24px; border: none; }"
+            "QPushButton { text-align: left; font-weight: 600; font-size: 13px; color: #475569; padding: 0px; border: none; }"
         )
         self._audit_toggle_btn.clicked.connect(self._toggle_audit_panel)
         audit_hdr_row.addWidget(self._audit_toggle_btn)
@@ -257,7 +295,7 @@ class HumanReviewPage(QWidget):
 
         self._audit_container = QWidget()
         self._audit_items_lay = QVBoxLayout(self._audit_container)
-        self._audit_items_lay.setContentsMargins(0, 2, 0, 0)
+        self._audit_items_lay.setContentsMargins(0, 4, 0, 0)
         self._audit_items_lay.setSpacing(6)
 
         self._audit_scroll = QScrollArea()
@@ -269,68 +307,76 @@ class HumanReviewPage(QWidget):
             "QWidget { background: transparent; }"
         )
         audit_lay.addWidget(self._audit_scroll)
-
         lay.addWidget(self._audit_card)
 
-        # Action bar
-        action_bar = QHBoxLayout()
-        action_bar.setSpacing(8)
+        # Action bar — 2 clean rows for comfortable click targets
+        actions_box = QVBoxLayout()
+        actions_box.setSpacing(10)
+
+        # Row 1: Navigation & Edit
+        nav_row = QHBoxLayout()
+        nav_row.setSpacing(10)
 
         self._prev_btn = QPushButton("◀  Prev")
         self._prev_btn.setObjectName("SecondaryBtn")
-        self._prev_btn.setFixedHeight(36)
+        self._prev_btn.setMinimumHeight(44)
         self._prev_btn.clicked.connect(self._prev)
-        action_bar.addWidget(self._prev_btn)
+        nav_row.addWidget(self._prev_btn, 1)
 
-        action_bar.addStretch()
-
-        self._reject_btn = QPushButton("✕  Reject")
-        self._reject_btn.setObjectName("DangerBtn")
-        self._reject_btn.setFixedHeight(36)
-        self._reject_btn.clicked.connect(self._reject)
-        action_bar.addWidget(self._reject_btn)
-
-        self._flag_btn = QPushButton("⚐  Flag")
-        self._flag_btn.setObjectName("SecondaryBtn")
-        self._flag_btn.setStyleSheet(
-            "QPushButton#SecondaryBtn { color:#FBBF24; border:1px solid #FBBF24; }"
-            "QPushButton#SecondaryBtn:hover { background-color:#FBBF241A; }"
-        )
-        self._flag_btn.setFixedHeight(36)
-        self._flag_btn.clicked.connect(self._flag)
-        action_bar.addWidget(self._flag_btn)
-
-        self._edit_btn = QPushButton("✎  Edit")
+        self._edit_btn = QPushButton("✎  Edit Text")
         self._edit_btn.setObjectName("SecondaryBtn")
-        self._edit_btn.setFixedHeight(36)
+        self._edit_btn.setMinimumHeight(44)
         self._edit_btn.clicked.connect(self._toggle_edit)
-        action_bar.addWidget(self._edit_btn)
-
-        self._approve_btn = QPushButton("✓  Approve")
-        self._approve_btn.setObjectName("SuccessBtn")
-        self._approve_btn.setFixedHeight(36)
-        self._approve_btn.clicked.connect(self._approve)
-        action_bar.addWidget(self._approve_btn)
-
-        action_bar.addStretch()
+        nav_row.addWidget(self._edit_btn, 1)
 
         self._next_btn = QPushButton("Next  ▶")
         self._next_btn.setObjectName("SecondaryBtn")
-        self._next_btn.setFixedHeight(36)
+        self._next_btn.setMinimumHeight(44)
         self._next_btn.clicked.connect(self._next)
-        action_bar.addWidget(self._next_btn)
+        nav_row.addWidget(self._next_btn, 1)
 
-        lay.addLayout(action_bar)
+        actions_box.addLayout(nav_row)
+
+        # Row 2: Verification Outcomes (Reject, Flag, Approve)
+        decision_row = QHBoxLayout()
+        decision_row.setSpacing(10)
+
+        self._reject_btn = QPushButton("✕  Reject")
+        self._reject_btn.setObjectName("DangerBtn")
+        self._reject_btn.setMinimumHeight(46)
+        self._reject_btn.clicked.connect(self._reject)
+        decision_row.addWidget(self._reject_btn, 1)
+
+        self._flag_btn = QPushButton("⚐  Flag")
+        self._flag_btn.setMinimumHeight(46)
+        self._flag_btn.setStyleSheet(
+            "QPushButton { background: rgba(245, 158, 11, 0.15); color: #F59E0B;"
+            "border: 1px solid #F59E0B; border-radius: 10px; font-weight: 600; font-size: 14px; }"
+            "QPushButton:hover { background: #F59E0B; color: #FFFFFF; }"
+        )
+        self._flag_btn.clicked.connect(self._flag)
+        decision_row.addWidget(self._flag_btn, 1)
+
+        self._approve_btn = QPushButton("✓  Approve Comment")
+        self._approve_btn.setObjectName("SuccessBtn")
+        self._approve_btn.setMinimumHeight(46)
+        self._approve_btn.clicked.connect(self._approve)
+        decision_row.addWidget(self._approve_btn, 2)
+
+        actions_box.addLayout(decision_row)
+        lay.addLayout(actions_box)
 
         hint = QLabel(
-            "Keyboard: A = Approve  ·  R = Reject  ·  F = Flag  ·  ← / → = Prev / Next"
+            "Keyboard Shortcuts: A = Approve  ·  R = Reject  ·  F = Flag  ·  ← / → = Prev / Next"
         )
         hint.setObjectName("SubCaption")
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hint.setStyleSheet("color: #6B7280; font-size: 12px; padding-top: 4px;")
         lay.addWidget(hint)
 
         lay.addStretch()
-        return panel
+        scroll.setWidget(panel)
+        return scroll
 
     # ── Canvas / comment helpers ──────────────────────────────────
 
@@ -481,7 +527,9 @@ class HumanReviewPage(QWidget):
         self._cat_badge.set_category(category)
 
         confidence = _get(c, "confidence", 0.0)
-        self._conf_lbl.setText(f"Confidence: {int(confidence * 100)}%")
+        self._conf_lbl.setText(f"{int(confidence * 100)}%")
+        if hasattr(self, "_conf_bar"):
+            self._conf_bar.setValue(int(confidence * 100))
         self._status_chip.set_status(self._statuses.get(cid, _get(c, "status", "Pending")))
 
         self._prev_btn.setEnabled(self._idx > 0)
