@@ -69,7 +69,7 @@ class ExportService:
         ws = wb.active
         ws.title = "Error Tracker"
 
-        headers = ['S.No', 'Drawing No', 'Page', 'Comment Text', 'Category', 'Confidence', 'Status', 'Reviewer', 'Timestamp']
+        headers = ['S.No', 'Drawing No', 'Page', 'Comment Text', 'Raw OCR Text', 'Category', 'Confidence', 'Status', 'Verified', 'Reviewer', 'Timestamp']
         ws.append(headers)
 
         header_font = Font(bold=True, color="FFFFFF")
@@ -91,27 +91,37 @@ class ExportService:
         }
 
         for idx, comment in enumerate(comments, 1):
+            text_val = comment.get('cleaned_text') or comment.get('raw_text', '')
+            raw_val = comment.get('raw_text', '')
+            cat_val = comment.get('category_name') or comment.get('category', 'Uncategorized')
+            conf_val = comment.get('classification_confidence') if comment.get('classification_confidence') is not None else comment.get('confidence', 0.0)
+            status_val = comment.get('status', 'Pending')
+            verified_val = "Yes" if comment.get('is_verified_by_human') else "No"
+            user_val = comment.get('user_id') or comment.get('reviewer_id', '')
+            ts_val = comment.get('created_at') or comment.get('timestamp', '')
+
             row = [
                 idx,
                 comment.get('drawing_id', ''),
                 comment.get('page_number', ''),
-                comment.get('raw_text', ''),
-                comment.get('category', ''),
-                comment.get('confidence', 0.0) if config.include_confidence_scores else '',
-                comment.get('status', 'Pending'),
-                comment.get('reviewer_id', ''),
-                comment.get('timestamp', '')
+                text_val,
+                raw_val,
+                cat_val,
+                conf_val if config.include_confidence_scores else '',
+                status_val,
+                verified_val,
+                user_val,
+                ts_val
             ]
             ws.append(row)
             
             current_row = idx + 1
-            status_val = comment.get('status', 'Pending')
-            status_cell = ws.cell(row=current_row, column=7)
+            status_cell = ws.cell(row=current_row, column=8)
             if status_val in status_colors:
                 status_cell.fill = PatternFill(start_color=status_colors[status_val], end_color=status_colors[status_val], fill_type="solid")
 
-            confidence_cell = ws.cell(row=current_row, column=6)
-            if config.include_confidence_scores:
+            confidence_cell = ws.cell(row=current_row, column=7)
+            if config.include_confidence_scores and isinstance(conf_val, (int, float)):
                 confidence_cell.number_format = '0.00%'
                 
             for col_num in range(1, len(headers) + 1):

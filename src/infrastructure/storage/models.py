@@ -264,6 +264,15 @@ class CommentModel(Base):
     category_name        = Column(String(100),nullable=True, default="Uncategorized")
     # Denormalised label for fast reads; canonical FK is category_id
     confidence           = Column(Float,      nullable=False, default=0.0)
+    # Model tracking & confidence metrics (Week 10)
+    classification_method     = Column(String(50),  nullable=True)
+    model_name                = Column(String(100), nullable=True)
+    model_version             = Column(String(50),  nullable=True)
+    classification_confidence = Column(Float,       nullable=True)
+    detection_confidence      = Column(Float,       nullable=True)
+    requires_human_review     = Column(Boolean,     nullable=False, default=False)
+    classification_timestamp  = Column(DateTime,    nullable=True)
+
     status               = Column(String(50), nullable=False, default="Pending")
     # "Pending" | "Approved" | "Rejected" | "Flagged"
     bbox_x0              = Column(Float,      nullable=False, default=0.0)
@@ -291,6 +300,8 @@ class CommentModel(Base):
         Index("ix_comments_status",      "status"),
         Index("ix_comments_category_id", "category_id"),
         Index("ix_comments_user_id",     "user_id"),
+        Index("ix_comments_is_verified", "is_verified_by_human"),
+        Index("ix_comments_drawing_verified", "drawing_id", "is_verified_by_human"),
     )
 
 

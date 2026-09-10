@@ -239,11 +239,23 @@ class ProcessingWorkflowEngine:
                     text_to_classify = item.get("cleaned_text") or item.get("raw_text", "")
                     class_res = self.classification_service.classify_comment(text_to_classify)
                     item["category_name"] = class_res.primary_category.category_name
-                    if class_res.primary_category.confidence > 0:
-                        item["confidence"] = round((item["confidence"] + class_res.primary_category.confidence) / 2.0, 2)
+                    item["classification_method"] = getattr(class_res, "classification_method", "hybrid_nlp")
+                    item["model_name"] = getattr(class_res, "model_name", "TF-IDF + Naive Bayes")
+                    item["model_version"] = getattr(class_res, "model_version", "1.0.0")
+                    item["classification_confidence"] = class_res.primary_category.confidence
+                    item["detection_confidence"] = float(item.get("confidence", 0.0))
+                    item["requires_human_review"] = getattr(class_res, "requires_human_review", False)
+                    item["classification_timestamp"] = datetime.utcnow()
                 except Exception as class_err:
                     logger.debug(f"Classification failed for '{item.get('raw_text')}': {class_err}")
                     item["category_name"] = "Uncategorized"
+                    item["classification_method"] = "rule_fallback"
+                    item["model_name"] = "Rule-based Fallback"
+                    item["model_version"] = "1.0.0"
+                    item["classification_confidence"] = 0.0
+                    item["detection_confidence"] = float(item.get("confidence", 0.0))
+                    item["requires_human_review"] = True
+                    item["classification_timestamp"] = datetime.utcnow()
 
             # ── Step 6: Database Persistence ─────────────────────
             notify("Data Persistence", WorkflowState.PERSISTING, 95, f"Saving drawing records to SQLite database.")
@@ -252,10 +264,6 @@ class ProcessingWorkflowEngine:
             # Every drawing must be associated with a ProjectModel row so that
             # DrawingModel.project_id is never NULL. When no user-selected project
             # is available, get_or_create_default_project() provides a stable FK target.
-            # Replace this with a user-chosen project_id once project selection UI exists.
-            # WARNING: project_repo is accessed here through drawing_repo._db to avoid
-            # requiring an extra constructor parameter on WorkflowEngine. A cleaner
-            # alternative is to inject ProjectRepository directly — safe to refactor later.
             try:
                 from src.infrastructure.storage.repository import ProjectRepository
                 project_repo_local = ProjectRepository(self.drawing_repo._db)
@@ -270,11 +278,42 @@ class ProcessingWorkflowEngine:
             drawing_id = db_record.get("id", "DWG-000")
 
             if self.comment_repo and extracted_comments_data:
+                # Fetch existing preserved comments (human-verified or non-pending)
+                existing_verified = []
+                try:
+                    all_existing = self.comment_repo.get_comments_for_drawing(drawing_id)
+                    existing_verified = [
+                        c for c in all_existing
+                        if c.get("is_verified_by_human") or c.get("status") != "Pending"
+                    ]
+                except Exception as ex_err:
+                    logger.debug(f"Error fetching existing comments for deduplication: {ex_err}")
+
                 try:
                     self.comment_repo.delete_comments_for_drawing(drawing_id)
                 except Exception as del_err:
                     logger.debug(f"Error clearing previous comments: {del_err}")
+
                 for c_item in extracted_comments_data:
+                    # Skip duplicate creation if a preserved human comment exists for the region/text
+                    is_dup = False
+                    for ev in existing_verified:
+                        if ev.get("page_number") == c_item["page_number"]:
+                            ev_text = (ev.get("raw_text") or "").strip().lower()
+                            item_text = (c_item.get("raw_text") or "").strip().lower()
+                            if ev_text and item_text and ev_text == item_text:
+                                is_dup = True
+                                break
+                            ev_bbox = ev.get("bbox")
+                            item_bbox = c_item.get("bbox")
+                            if ev_bbox and item_bbox and len(ev_bbox) == 4 and len(item_bbox) == 4:
+                                if abs(ev_bbox[0] - item_bbox[0]) < 15 and abs(ev_bbox[1] - item_bbox[1]) < 15:
+                                    is_dup = True
+                                    break
+                    if is_dup:
+                        logger.info(f"Skipping OCR re-insertion for comment at page {c_item['page_number']} matching preserved human review.")
+                        continue
+
                     try:
                         self.comment_repo.save_comment(
                             drawing_id=drawing_id,
@@ -282,9 +321,16 @@ class ProcessingWorkflowEngine:
                             raw_text=c_item["raw_text"],
                             cleaned_text=c_item.get("cleaned_text", ""),
                             bbox=c_item["bbox"],
-                            confidence=c_item.get("confidence", 0.0),
+                            confidence=c_item.get("detection_confidence", 0.0),
                             category_name=c_item.get("category_name", "Uncategorized"),
                             label=c_item.get("label", "comment_red"),
+                            classification_method=c_item.get("classification_method"),
+                            model_name=c_item.get("model_name"),
+                            model_version=c_item.get("model_version"),
+                            classification_confidence=c_item.get("classification_confidence"),
+                            detection_confidence=c_item.get("detection_confidence"),
+                            requires_human_review=c_item.get("requires_human_review", False),
+                            classification_timestamp=c_item.get("classification_timestamp"),
                         )
                     except Exception as save_err:
                         logger.error(f"Error persisting comment {c_item}: {save_err}")

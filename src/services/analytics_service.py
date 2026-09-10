@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict
-from sqlalchemy import func
+from sqlalchemy import func, case
 from datetime import datetime
 
 from src.infrastructure.storage.repository import DatabaseEngine
@@ -47,26 +47,48 @@ class AnalyticsService:
             total_projects = session.query(func.count(ProjectModel.id)).scalar() or 0
             total_drawings = session.query(func.count(DrawingModel.id)).scalar() or 0
             total_pages = session.query(func.count(PageModel.id)).scalar() or 0
-            
-            comments = session.query(CommentModel).all()
-            total_comments = len(comments)
-            
-            approved_count = sum(1 for c in comments if c.status == "Approved")
-            rejected_count = sum(1 for c in comments if c.status == "Rejected")
-            pending_count = sum(1 for c in comments if c.status == "Pending")
-            flagged_count = sum(1 for c in comments if c.status == "Flagged")
-            
-            approved_verified = sum(1 for c in comments if c.status == "Approved" and c.is_verified_by_human)
+            total_comments = session.query(func.count(CommentModel.id)).scalar() or 0
+
+            if total_comments == 0:
+                return KPISummaryDTO(
+                    total_projects=total_projects,
+                    total_drawings=total_drawings,
+                    total_comments=0,
+                    total_pages=total_pages,
+                    accuracy_rate=None,
+                    approved_count=0,
+                    rejected_count=0,
+                    pending_count=0,
+                    flagged_count=0,
+                    avg_confidence=0.0,
+                    high_confidence_pct=0.0,
+                    low_confidence_pct=0.0
+                )
+
+            stats = session.query(
+                func.sum(case((CommentModel.status == "Approved", 1), else_=0)),
+                func.sum(case((CommentModel.status == "Rejected", 1), else_=0)),
+                func.sum(case((CommentModel.status == "Pending", 1), else_=0)),
+                func.sum(case((CommentModel.status == "Flagged", 1), else_=0)),
+                func.sum(case(((CommentModel.status == "Approved") & (CommentModel.is_verified_by_human == True), 1), else_=0)),
+                func.avg(CommentModel.confidence),
+                func.sum(case((CommentModel.confidence >= 0.85, 1), else_=0)),
+                func.sum(case((CommentModel.confidence < 0.60, 1), else_=0)),
+            ).first()
+
+            approved_count = int(stats[0] or 0)
+            rejected_count = int(stats[1] or 0)
+            pending_count = int(stats[2] or 0)
+            flagged_count = int(stats[3] or 0)
+            approved_verified = int(stats[4] or 0)
+            avg_confidence = float(stats[5] or 0.0)
+            high_conf = int(stats[6] or 0)
+            low_conf = int(stats[7] or 0)
+
             accuracy_rate = (approved_verified / total_comments * 100.0) if total_comments > 0 else None
-            
-            avg_confidence = sum((c.confidence or 0.0) for c in comments) / total_comments if total_comments > 0 else 0.0
-            
-            high_conf = sum(1 for c in comments if (c.confidence or 0.0) >= 0.85)
-            low_conf = sum(1 for c in comments if (c.confidence or 0.0) < 0.60)
-            
             high_confidence_pct = (high_conf / total_comments * 100.0) if total_comments > 0 else 0.0
             low_confidence_pct = (low_conf / total_comments * 100.0) if total_comments > 0 else 0.0
-            
+
             return KPISummaryDTO(
                 total_projects=total_projects,
                 total_drawings=total_drawings,

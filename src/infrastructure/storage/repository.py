@@ -629,30 +629,22 @@ class CommentRepository:
         cleaned_text: str = "",
         status: str = "Pending",
         label: str = "comment_red",
+        classification_method: Optional[str] = None,
+        model_name: Optional[str] = None,
+        model_version: Optional[str] = None,
+        classification_confidence: Optional[float] = None,
+        detection_confidence: Optional[float] = None,
+        requires_human_review: bool = False,
+        classification_timestamp: Optional[datetime] = None,
     ) -> Dict[str, Any]:
-        """Persist a single extracted comment.
-
-        Parameters
-        ----------
-        bbox:
-            MUST be (x0, y0, x1, y1) in ABSOLUTE PDF POINT COORDINATES.
-            1 point = 1/72 inch. Origin is top-left of page.
-            x0=left, y0=top, x1=right, y1=bottom.
-
-            Do NOT pass normalised (0-1) coordinates.
-            Do NOT pass (x, y, width, height) format.
-
-            PyMuPDF's extract_page_text_blocks() already returns (x0,y0,x1,y1)
-            absolute points and is the correct source for this parameter.
-
-            See docs/AGENT_INTEGRATION_GUIDELINES.md WARNING-009 for context.
-        status:
-            Must be one of: "Pending", "Approved", "Rejected", "Flagged".
-            Default is "Pending" for all newly extracted comments.
-        label:
-            Detection label, e.g. "comment_red", "comment_blue", "native_redline".
-        """
+        """Persist a single extracted comment."""
         with self._db.get_session() as session:
+            # Auto-populate category_id if missing but category_name is present
+            if not category_id and category_name:
+                cat_repo = CategoryRepository(self._db)
+                cat_dict = cat_repo.get_or_create_category(category_name)
+                category_id = cat_dict["id"]
+
             comment = CommentModel(
                 id=f"CMT-{uuid.uuid4().hex[:8].upper()}",
                 drawing_id=drawing_id,
@@ -664,6 +656,13 @@ class CommentRepository:
                 cleaned_text=cleaned_text,
                 category_name=category_name,
                 confidence=confidence,
+                classification_method=classification_method,
+                model_name=model_name,
+                model_version=model_version,
+                classification_confidence=classification_confidence,
+                detection_confidence=detection_confidence if detection_confidence is not None else confidence,
+                requires_human_review=requires_human_review,
+                classification_timestamp=classification_timestamp or datetime.utcnow(),
                 status=status,
                 label=label,
                 bbox_x0=bbox[0],
@@ -780,13 +779,13 @@ class CommentRepository:
             logger.info(f"Comment '{comment_id}' status → '{status}', verified={verified_by_human}")
             return True
 
-    def update_comment_text(self, comment_id: str, new_text: str) -> Optional[str]:
+    def update_comment_text(self, comment_id: str, new_text: str) -> bool:
         """
         Persist a human-corrected text for a comment.
 
         IMPORTANT (Week 7):
         This method writes the corrected text to ``cleaned_text``, NOT to
-        ``raw_text``.  ``raw_text`` represents the original OCR extraction and
+        ``raw_text``. ``raw_text`` represents the original OCR extraction and
         must never be overwritten by a human edit.
 
         Parameters
@@ -798,28 +797,19 @@ class CommentRepository:
 
         Returns
         -------
-        Optional[str]
-            The previous cleaned_text value (before the update), so the caller
-            can log it as old_value in the audit log.
-            Returns None if the comment was not found.
-
-        # INTEGRATION NOTE:
-        # This method is called from AppController.update_comment_text() and
-        # VerificationService.edit_comment_text().
-        # UI screens must never call this repository method directly.
-        # raw_text is intentionally NOT modified here.
+        bool
+            True if updated, False if comment not found.
         """
         with self._db.get_session() as session:
             row = session.get(CommentModel, comment_id)
             if row is None:
                 logger.warning(f"update_comment_text: comment '{comment_id}' not found.")
-                return None
-            old_text = row.cleaned_text or ""
+                return False
             row.cleaned_text = new_text
             row.updated_at = datetime.now(timezone.utc)
             session.commit()
             logger.info(f"Comment '{comment_id}' cleaned_text updated ({len(new_text)} chars).")
-            return old_text
+            return True
 
     def get_comment_status(self, comment_id: str) -> Optional[str]:
         """
@@ -922,6 +912,25 @@ class CommentAuditLogRepository:
         dict with "id" of the created audit record.
         """
         with self._db.get_session() as session:
+            valid_user_id = None
+            if changed_by_user_id:
+                user_row = session.get(UserModel, changed_by_user_id)
+                if user_row:
+                    valid_user_id = changed_by_user_id
+                else:
+                    user_by_name = session.query(UserModel).filter(UserModel.username == changed_by_user_id).first()
+                    if user_by_name:
+                        valid_user_id = user_by_name.id
+                    else:
+                        new_user = UserModel(
+                            id=changed_by_user_id if changed_by_user_id.startswith("USR-") else f"USR-{uuid.uuid4().hex[:8].upper()}",
+                            username=changed_by_user_id,
+                            display_name=changed_by_user_id,
+                        )
+                        session.add(new_user)
+                        session.commit()
+                        valid_user_id = new_user.id
+
             entry = CommentAuditLogModel(
                 id=f"AUD-{uuid.uuid4().hex[:8].upper()}",
                 comment_id=comment_id or None,
@@ -929,7 +938,7 @@ class CommentAuditLogRepository:
                 field_changed=field_changed,
                 old_value=old_value,
                 new_value=new_value,
-                changed_by_user_id=changed_by_user_id or None,
+                changed_by_user_id=valid_user_id,
                 changed_at=datetime.now(timezone.utc),
                 notes=notes or None,
             )
@@ -940,6 +949,8 @@ class CommentAuditLogRepository:
                 f"field='{field_changed}' by='{changed_by_user_id}'"
             )
             return {"id": entry.id, "action": action, "changed_at": entry.changed_at.isoformat()}
+
+    log_change = log_action
 
     def get_history_for_comment(
         self, comment_id: str
@@ -1056,6 +1067,23 @@ def _user_to_dict(u: UserModel) -> Dict[str, Any]:
     }
 
 
+def _audit_entry_to_dict(a: CommentAuditLogModel) -> Dict[str, Any]:
+    return {
+        "id":                 a.id,
+        "comment_id":         a.comment_id,
+        "action":             a.action,
+        "field_changed":      a.field_changed,
+        "old_value":          a.old_value,
+        "new_value":          a.new_value,
+        "changed_by_user_id": a.changed_by_user_id,
+        "changed_at": (
+            a.changed_at.isoformat()
+            if isinstance(a.changed_at, datetime) else (a.changed_at or "")
+        ),
+        "notes":              a.notes,
+    }
+
+
 def _comment_to_dict(c: CommentModel) -> Dict[str, Any]:
     return {
         "id":                   c.id,
@@ -1068,6 +1096,16 @@ def _comment_to_dict(c: CommentModel) -> Dict[str, Any]:
         "category_name":        c.category_name,
         "user_id":              c.user_id,
         "confidence":           c.confidence,
+        "classification_method":     getattr(c, "classification_method", None),
+        "model_name":                getattr(c, "model_name", None),
+        "model_version":             getattr(c, "model_version", None),
+        "classification_confidence": getattr(c, "classification_confidence", None),
+        "detection_confidence":      getattr(c, "detection_confidence", None),
+        "requires_human_review":     getattr(c, "requires_human_review", False),
+        "classification_timestamp":  (
+            c.classification_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            if getattr(c, "classification_timestamp", None) else None
+        ),
         "status":               c.status,
         "label":                getattr(c, "label", "comment_red") or "comment_red",
         "bbox":                 (c.bbox_x0, c.bbox_y0, c.bbox_x1, c.bbox_y1),

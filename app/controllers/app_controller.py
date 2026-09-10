@@ -575,20 +575,31 @@ class AppController(QObject):
         if doc is not None:
             drawing_no = doc.file_name.rsplit(".", 1)[0]
 
+        display_text = db_dict.get("cleaned_text") or db_dict.get("raw_text", "")
+
         return {
-            "id":          db_dict.get("id", ""),
-            "drawing_id":  db_dict.get("drawing_id", ""),
-            "drawing_no":  drawing_no,
-            "page":        db_dict.get("page_number", 1),
-            "ocr_text":    db_dict.get("raw_text", ""),
-            "category":    db_dict.get("category_name") or "Uncategorized",
-            "confidence":  db_dict.get("confidence", 0.0),
-            "status":      db_dict.get("status", "Pending"),
-            "label":       db_dict.get("label", "comment_red"),
-            "bbox":        normalised_bbox,
-            "reviewer":    db_dict.get("user_id"),
-            "timestamp":   db_dict.get("created_at", ""),
-            "is_verified": db_dict.get("is_verified_by_human", False),
+            "id":                        db_dict.get("id", ""),
+            "drawing_id":                db_dict.get("drawing_id", ""),
+            "drawing_no":                drawing_no,
+            "page":                      db_dict.get("page_number", 1),
+            "ocr_text":                  display_text,
+            "cleaned_text":              db_dict.get("cleaned_text", ""),
+            "raw_text":                  db_dict.get("raw_text", ""),
+            "category_id":                db_dict.get("category_id"),
+            "category":                  db_dict.get("category_name") or "Uncategorized",
+            "confidence":                db_dict.get("confidence", 0.0),
+            "classification_method":     db_dict.get("classification_method"),
+            "model_name":                db_dict.get("model_name"),
+            "model_version":             db_dict.get("model_version"),
+            "classification_confidence": db_dict.get("classification_confidence"),
+            "detection_confidence":      db_dict.get("detection_confidence"),
+            "requires_human_review":     db_dict.get("requires_human_review", False),
+            "status":                    db_dict.get("status", "Pending"),
+            "label":                     db_dict.get("label", "comment_red"),
+            "bbox":                      normalised_bbox,
+            "reviewer":                  db_dict.get("user_id"),
+            "timestamp":                 db_dict.get("created_at", ""),
+            "is_verified":               db_dict.get("is_verified_by_human", False),
         }
 
     # ── Internal slots ─────────────────────────────────────────────

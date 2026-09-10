@@ -475,7 +475,7 @@ class TestWeek3Compatibility:
         assert ok is True
 
         comments = comment_repo.get_comments_for_drawing(drawing_id)
-        assert comments[0]["raw_text"] == "Corrected OCR text"
+        assert (comments[0].get("cleaned_text") or comments[0].get("raw_text")) == "Corrected OCR text"
 
     def test_get_category_counts_still_works(
         self, drawing_repo, project_repo, comment_repo
