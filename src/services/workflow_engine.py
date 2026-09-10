@@ -247,7 +247,26 @@ class ProcessingWorkflowEngine:
 
             # ── Step 6: Database Persistence ─────────────────────
             notify("Data Persistence", WorkflowState.PERSISTING, 95, f"Saving drawing records to SQLite database.")
-            db_record = self.drawing_repo.save_drawing_from_dto(doc_dto)
+
+            # INTEGRATION NOTE (Week 4):
+            # Every drawing must be associated with a ProjectModel row so that
+            # DrawingModel.project_id is never NULL. When no user-selected project
+            # is available, get_or_create_default_project() provides a stable FK target.
+            # Replace this with a user-chosen project_id once project selection UI exists.
+            # WARNING: project_repo is accessed here through drawing_repo._db to avoid
+            # requiring an extra constructor parameter on WorkflowEngine. A cleaner
+            # alternative is to inject ProjectRepository directly — safe to refactor later.
+            try:
+                from src.infrastructure.storage.repository import ProjectRepository
+                project_repo_local = ProjectRepository(self.drawing_repo._db)
+                default_project_id = project_repo_local.get_or_create_default_project()
+            except Exception as proj_err:
+                logger.warning(f"Could not resolve default project: {proj_err}. Drawing will have project_id=None.")
+                default_project_id = None
+
+            db_record = self.drawing_repo.save_drawing_from_dto(
+                doc_dto, project_id=default_project_id
+            )
             drawing_id = db_record.get("id", "DWG-000")
 
             if self.comment_repo and extracted_comments_data:

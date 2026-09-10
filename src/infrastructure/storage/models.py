@@ -3,12 +3,13 @@ src/infrastructure/storage/models.py
 SQLAlchemy 2.x ORM Models for the UCC Analyzer SQLite database.
 
 Tables:
-    users        — reviewer/engineer accounts
-    categories   — comment classification categories
-    projects     — engineering projects
-    drawings     — uploaded PDF drawing files (metadata only, no binary data)
-    pages        — individual pages extracted from drawings
-    comments     — review comments extracted from pages
+    users              — reviewer/engineer accounts
+    categories         — comment classification categories
+    projects           — engineering projects
+    drawings           — uploaded PDF drawing files (metadata only, no binary data)
+    pages              — individual pages extracted from drawings
+    comments           — review comments extracted from pages
+    comment_audit_log  — persistent audit/version history for comment changes (Week 7)
 """
 
 from datetime import datetime
@@ -125,6 +126,31 @@ class DrawingModel(Base):
     """
     Metadata for an uploaded PDF drawing.
     Binary PDF content is NEVER stored here — only file path and hashes.
+
+    Column notes
+    ------------
+    drawing_number : Engineering drawing identifier (e.g. "UCC-E-101").
+                     Extracted from PDF metadata "Subject" field, "Title"
+                     field (when it looks like a number), or the filename stem.
+                     Advisory only — may be empty. NOT a primary/foreign key.
+                     See PyMuPDFAdapter._extract_drawing_number() for rules.
+
+    creation_date  : PDF-internal creation timestamp ("YYYY-MM-DD HH:MM:SS").
+                     NULL when the PDF does not carry this metadata.
+                     Do NOT populate with file-system mtime as a substitute.
+
+    modification_date : PDF-internal last-modified timestamp.
+                        NULL when absent from PDF metadata.
+
+    ocr_status     : Processing status for OCR pipeline.
+                     Values: "pending" | "completed" | "failed".
+                     Set by the workflow engine after OCR completes.
+                     NULL for drawings that pre-date the OCR pipeline.
+
+    INTEGRATION WARNING:
+    drawing_number is NOT the database primary key (id).
+    Never use drawing_number as a foreign-key drawing_id.
+    The canonical drawing ID is DrawingModel.id ("DWG-XXXXXXXX").
     """
 
     __tablename__ = "drawings"
@@ -141,6 +167,11 @@ class DrawingModel(Base):
     is_scanned        = Column(Boolean,     nullable=False, default=False)
     title             = Column(String(255), nullable=True)
     author            = Column(String(255), nullable=True)
+    # Week 4 additions — all nullable so existing rows are unaffected
+    drawing_number    = Column(String(100), nullable=True)
+    creation_date     = Column(String(19),  nullable=True)   # "YYYY-MM-DD HH:MM:SS"
+    modification_date = Column(String(19),  nullable=True)   # "YYYY-MM-DD HH:MM:SS"
+    ocr_status        = Column(String(50),  nullable=True,   default="pending")
     uploaded_at       = Column(DateTime,    nullable=False, default=datetime.utcnow)
 
     # Relationships
@@ -260,4 +291,88 @@ class CommentModel(Base):
         Index("ix_comments_status",      "status"),
         Index("ix_comments_category_id", "category_id"),
         Index("ix_comments_user_id",     "user_id"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# comment_audit_log  (Week 7)
+# ---------------------------------------------------------------------------
+
+class CommentAuditLogModel(Base):
+    """
+    Persistent audit / version history for all human-initiated changes to
+    comment records.
+
+    DESIGN RATIONALE:
+    A separate audit-log table is used (rather than adding history columns to
+    comments) because:
+    - A comment may have many history entries; one-per-row in CommentModel
+      would require unbounded columns or repeated rows.
+    - The existing VerificationService already models exactly this pattern via
+      AuditLogEntryDTO — this table persists it.
+    - 'ON DELETE SET NULL' on comment_id preserves audit history even if the
+      comment itself is later deleted, satisfying audit requirements.
+
+    ACTION VOCABULARY  (matches AuditAction constants in audit_dtos.py):
+        "approve"         — human reviewer approved
+        "reject"          — human reviewer rejected
+        "flag"            — flagged for further review
+        "edit_text"       — OCR/cleaned text edited by human
+        "edit_category"   — category reassigned
+        "bulk_approve"    — system bulk-approved
+
+    FIELD NOTES:
+    - old_value / new_value: TEXT — stores the previous and new content of
+      the changed field as a plain string.  For status changes these are the
+      status strings; for text edits these are the full text strings.
+    - changed_by_user_id: FK to users.id, nullable — NULL when the action
+      is system-initiated (e.g. bulk workflow).
+    - field_changed: identifies which CommentModel field was modified so that
+      callers can filter history by field (e.g. "raw_text", "status").
+
+    INTEGRATION NOTE:
+    This table is written by CommentAuditLogRepository (in repository.py).
+    UI screens must never INSERT to this table directly.
+    All writes go through VerificationService → AppController.
+    """
+
+    __tablename__ = "comment_audit_log"
+
+    id                  = Column(String(50),  primary_key=True)
+    comment_id          = Column(
+        String(50),
+        ForeignKey("comments.id", ondelete="SET NULL"),
+        nullable=True,          # nullable so history survives comment deletion
+    )
+    action              = Column(String(50),  nullable=False)
+    # e.g. "approve" | "reject" | "flag" | "edit_text" | "edit_category"
+    field_changed       = Column(String(50),  nullable=True)
+    # e.g. "raw_text" | "cleaned_text" | "status" | "category_name"
+    old_value           = Column(Text,        nullable=True)
+    new_value           = Column(Text,        nullable=True)
+    changed_by_user_id  = Column(
+        String(50),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    changed_at          = Column(DateTime,    nullable=False, default=datetime.utcnow)
+    notes               = Column(Text,        nullable=True)
+
+    # Relationships (back-populate not required for audit; kept for optional joins)
+    comment = relationship(
+        "CommentModel",
+        foreign_keys=[comment_id],
+        backref="audit_entries",
+        passive_deletes=True,
+    )
+    changed_by = relationship(
+        "UserModel",
+        foreign_keys=[changed_by_user_id],
+        passive_deletes=True,
+    )
+
+    __table_args__ = (
+        Index("ix_audit_comment_id",   "comment_id"),
+        Index("ix_audit_changed_at",   "changed_at"),
+        Index("ix_audit_action",       "action"),
     )
