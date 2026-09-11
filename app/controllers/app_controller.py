@@ -243,7 +243,7 @@ class AppController(QObject):
         
         # ── New Backend Services ──────────────────────────────────
         self.analytics_service      = AnalyticsService(self.db_engine)
-        self.export_service         = ExportService(self.comment_repo, self.project_repo)
+        self.export_service         = ExportService(self.comment_repo, self.project_repo, self.drawing_repo)
         self.verification_service   = VerificationService(self.comment_repo, self.audit_repo)
         self.text_cleaning_service  = TextCleaningService()
         self.classification_service = ClassificationService()
@@ -588,6 +588,26 @@ class AppController(QObject):
             "timestamp":   db_dict.get("created_at", ""),
             "is_verified": db_dict.get("is_verified_by_human", False),
         }
+
+    # ── Export Operations ──────────────────────────────────────────
+
+    def export_data(self, config: ExportConfigDTO) -> Any:
+        """
+        Export drawing review comments to Error Tracker Excel, JSON, or CSV.
+        Auto-populates drawing and project metadata if omitted.
+        """
+        if not config.drawing_id and self._current_drawing_id:
+            config.drawing_id = self._current_drawing_id
+
+        if not config.drawing_no and self._active_doc:
+            config.drawing_no = self._active_doc.file_name.rsplit(".", 1)[0]
+            if not config.drawing_title:
+                config.drawing_title = getattr(self._active_doc, "title", None) or "Piping & Instrumentation Diagram"
+
+        if not config.designer_name and self._active_session:
+            config.designer_name = self._active_session.display_name or self._active_session.username
+
+        return self.export_service.export_drawing_comments(config)
 
     # ── Internal slots ─────────────────────────────────────────────
 
