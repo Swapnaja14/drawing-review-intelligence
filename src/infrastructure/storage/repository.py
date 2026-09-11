@@ -27,6 +27,7 @@ from src.infrastructure.storage.models import (
     ProjectModel,
     CategoryModel,
     UserModel,
+    AuditLogModel,
 )
 
 logger = get_logger("DatabaseRepository")
@@ -625,6 +626,76 @@ class CommentRepository:
 
 
 # ---------------------------------------------------------------------------
+# AuditLogRepository
+# ---------------------------------------------------------------------------
+
+class AuditLogRepository:
+    """Persistence and query operations for Comment Audit Logs."""
+
+    def __init__(self, db_engine: DatabaseEngine) -> None:
+        self._db = db_engine
+
+    def create_audit_entry(
+        self,
+        comment_id: str,
+        action: str,
+        reviewer_id: Optional[str] = None,
+        reviewer_name: Optional[str] = None,
+        old_value: Optional[str] = "",
+        new_value: Optional[str] = "",
+        notes: Optional[str] = "",
+        timestamp: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
+        """Record an immutable audit log entry for a comment modification."""
+        with self._db.get_session() as session:
+            # Safely check if reviewer_id is a valid user_id in the users table
+            valid_user_id = None
+            if reviewer_id and reviewer_id != "system":
+                user_match = session.get(UserModel, reviewer_id)
+                if user_match:
+                    valid_user_id = reviewer_id
+                    if not reviewer_name:
+                        reviewer_name = user_match.display_name or user_match.username
+
+            entry = AuditLogModel(
+                id=f"AUD-{uuid.uuid4().hex[:8].upper()}",
+                comment_id=comment_id,
+                action=action,
+                user_id=valid_user_id,
+                reviewer_name=reviewer_name or reviewer_id or "system",
+                old_value=old_value or "",
+                new_value=new_value or "",
+                notes=notes or "",
+                timestamp=timestamp or datetime.now(timezone.utc),
+            )
+            session.add(entry)
+            session.commit()
+            return _audit_log_to_dict(entry)
+
+    def get_audit_logs_for_comment(self, comment_id: str) -> List[Dict[str, Any]]:
+        """Return all historical audit log entries for a specific comment (newest first)."""
+        with self._db.get_session() as session:
+            rows = (
+                session.query(AuditLogModel)
+                .filter(AuditLogModel.comment_id == comment_id)
+                .order_by(AuditLogModel.timestamp.desc())
+                .all()
+            )
+            return [_audit_log_to_dict(r) for r in rows]
+
+    def get_recent_audit_logs(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Return recent audit logs across all comments."""
+        with self._db.get_session() as session:
+            rows = (
+                session.query(AuditLogModel)
+                .order_by(AuditLogModel.timestamp.desc())
+                .limit(limit)
+                .all()
+            )
+            return [_audit_log_to_dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
 # Private serialisation helpers
 # ---------------------------------------------------------------------------
 
@@ -693,5 +764,27 @@ def _comment_to_dict(c: CommentModel) -> Dict[str, Any]:
         "created_at":           (
             c.created_at.strftime("%Y-%m-%d %H:%M:%S")
             if c.created_at else ""
+        ),
+    }
+
+
+def _audit_log_to_dict(a: AuditLogModel) -> Dict[str, Any]:
+    return {
+        "id":            a.id,
+        "comment_id":    a.comment_id,
+        "action":        a.action,
+        "user_id":       a.user_id,
+        "reviewer_id":   a.user_id or a.reviewer_name or "system",
+        "reviewer_name": a.reviewer_name or a.user_id or "system",
+        "old_value":     a.old_value or "",
+        "new_value":     a.new_value or "",
+        "notes":         a.notes or "",
+        "timestamp":     (
+            a.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            if a.timestamp else ""
+        ),
+        "created_at":    (
+            a.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            if a.timestamp else ""
         ),
     }
