@@ -5,7 +5,7 @@ Uses Tesseract OCR for text extraction from PDF drawings
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-import fitz  # PyMuPDF
+import pymupdf as fitz
 from PIL import Image
 import pytesseract
 import io

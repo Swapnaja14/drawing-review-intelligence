@@ -13,7 +13,7 @@ This service focuses on:
 import time
 import cv2
 import numpy as np
-import fitz  # PyMuPDF
+import pymupdf as fitz
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass

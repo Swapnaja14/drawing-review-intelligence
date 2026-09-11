@@ -9,7 +9,7 @@ Enhanced Annotation Detection Service with 4 Extraction Methods:
 import time
 import cv2
 import numpy as np
-import fitz  # PyMuPDF
+import pymupdf as fitz
 from pathlib import Path
 from typing import List, Literal
 
