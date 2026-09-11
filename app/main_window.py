@@ -122,6 +122,7 @@ class MainWindow(QMainWindow):
     def _navigate(self, idx: int):
         self._stack.setCurrentIndex(idx)
         self._topbar.set_breadcrumb(_PAGE_TITLES[idx])
+        self._sidebar.set_page(idx)
         self._pages[idx].setFocus()
 
     def _open_pdf_viewer(self):
