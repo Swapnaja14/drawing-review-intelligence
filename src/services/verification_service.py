@@ -7,27 +7,53 @@ from src.core.dtos.audit_dtos import (
     VerificationSummaryDTO,
     BulkActionResultDTO
 )
-from src.infrastructure.storage.repository import CommentRepository
+from src.core.dtos.audit_dtos import (
+    AuditAction,
+    AuditLogEntryDTO,
+    VerificationSummaryDTO,
+    BulkActionResultDTO
+)
+from src.infrastructure.storage.repository import CommentRepository, AuditLogRepository
 from src.infrastructure.logging.logger import get_logger
 
 logger = get_logger(__name__)
 
 class VerificationService:
-    def __init__(self, comment_repo: CommentRepository):
+    def __init__(
+        self,
+        comment_repo: CommentRepository,
+        audit_repo: Optional[AuditLogRepository] = None,
+    ):
         self.comment_repo = comment_repo
+        self.audit_repo = audit_repo
         self._audit_log: List[AuditLogEntryDTO] = []
 
     def _log_audit(self, comment_id: str, action: str, reviewer_id: str, old_value: str, new_value: str, notes: str = '') -> None:
+        now_dt = datetime.now()
         entry = AuditLogEntryDTO(
             comment_id=comment_id,
             action=action,
             reviewer_id=reviewer_id,
             old_value=old_value,
             new_value=new_value,
-            timestamp=datetime.now(),
+            timestamp=now_dt,
             notes=notes
         )
         self._audit_log.append(entry)
+
+        if self.audit_repo:
+            try:
+                self.audit_repo.create_audit_entry(
+                    comment_id=comment_id,
+                    action=action,
+                    reviewer_id=reviewer_id,
+                    old_value=old_value,
+                    new_value=new_value,
+                    notes=notes,
+                    timestamp=now_dt,
+                )
+            except Exception as e:
+                logger.warning(f"Could not persist audit log to database: {e}")
 
     def approve_comment(self, comment_id: str, reviewer_id: str = '', notes: str = '') -> bool:
         success = self.comment_repo.update_comment_status(comment_id, 'Approved', True)
@@ -111,6 +137,42 @@ class VerificationService:
         )
 
     def get_audit_log(self, comment_id: Optional[str] = None) -> List[AuditLogEntryDTO]:
+        if self.audit_repo:
+            try:
+                if comment_id:
+                    db_logs = self.audit_repo.get_audit_logs_for_comment(comment_id)
+                else:
+                    db_logs = self.audit_repo.get_recent_audit_logs(limit=100)
+                
+                dtos = []
+                for row in db_logs:
+                    ts_raw = row.get("timestamp") or row.get("created_at")
+                    if isinstance(ts_raw, str):
+                        try:
+                            ts = datetime.strptime(ts_raw, "%Y-%m-%d %H:%M:%S")
+                        except Exception:
+                            ts = datetime.now()
+                    elif isinstance(ts_raw, datetime):
+                        ts = ts_raw
+                    else:
+                        ts = datetime.now()
+
+                    dtos.append(
+                        AuditLogEntryDTO(
+                            comment_id=row.get("comment_id", ""),
+                            action=row.get("action", ""),
+                            reviewer_id=row.get("reviewer_id", "") or row.get("user_id", "") or "system",
+                            old_value=row.get("old_value", ""),
+                            new_value=row.get("new_value", ""),
+                            timestamp=ts,
+                            notes=row.get("notes", ""),
+                        )
+                    )
+                if dtos:
+                    return dtos
+            except Exception as e:
+                logger.warning(f"Error reading audit log from database: {e}")
+
         if comment_id:
             return [entry for entry in self._audit_log if entry.comment_id == comment_id]
         return self._audit_log

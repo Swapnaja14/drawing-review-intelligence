@@ -254,10 +254,50 @@ class CommentModel(Base):
                                 foreign_keys=[category_id])
     user         = relationship("UserModel",     back_populates="comments",
                                 foreign_keys=[user_id])
+    audit_logs   = relationship("AuditLogModel", back_populates="comment",
+                                cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("ix_comments_drawing_id",  "drawing_id"),
         Index("ix_comments_status",      "status"),
         Index("ix_comments_category_id", "category_id"),
         Index("ix_comments_user_id",     "user_id"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# audit_logs
+# ---------------------------------------------------------------------------
+
+class AuditLogModel(Base):
+    """
+    Immutable audit log entry recording human review and modification actions
+    on comments (e.g. approve, reject, flag, edit text/category).
+    """
+
+    __tablename__ = "audit_logs"
+
+    id            = Column(String(50),  primary_key=True)
+    comment_id    = Column(String(50),
+                           ForeignKey("comments.id", ondelete="CASCADE"),
+                           nullable=False)
+    action        = Column(String(50),  nullable=False)
+    # e.g. "approve", "reject", "flag", "edit_text", "edit_category", "bulk_approve"
+    user_id       = Column(String(50),
+                           ForeignKey("users.id", ondelete="SET NULL"),
+                           nullable=True)
+    reviewer_name = Column(String(150), nullable=True)
+    old_value     = Column(Text,        nullable=True)
+    new_value     = Column(Text,        nullable=True)
+    notes         = Column(Text,        nullable=True)
+    timestamp     = Column(DateTime,    nullable=False, default=datetime.utcnow)
+
+    # Relationships
+    comment = relationship("CommentModel", back_populates="audit_logs", foreign_keys=[comment_id])
+    user    = relationship("UserModel", foreign_keys=[user_id])
+
+    __table_args__ = (
+        Index("ix_audit_logs_comment_id", "comment_id"),
+        Index("ix_audit_logs_timestamp",  "timestamp"),
+        Index("ix_audit_logs_user_id",    "user_id"),
     )

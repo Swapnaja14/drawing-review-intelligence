@@ -42,6 +42,7 @@ from src.infrastructure.storage.repository import (
     DrawingRepository,
     ProjectRepository,
     CommentRepository,
+    AuditLogRepository,
 )
 from src.core.dtos.pdf_dtos import PDFDocumentDTO, RenderedPageDTO
 from src.core.dtos.auth_dtos import UserDTO, SessionTokenDTO
@@ -235,6 +236,7 @@ class AppController(QObject):
         self.drawing_repo = DrawingRepository(self.db_engine)
         self.project_repo = ProjectRepository(self.db_engine)
         self.comment_repo = CommentRepository(self.db_engine)
+        self.audit_repo   = AuditLogRepository(self.db_engine)
 
         # Auth and workflow services that depend on db_engine
         self.auth_service    = AuthService(self.db_engine)
@@ -242,7 +244,7 @@ class AppController(QObject):
         # ── New Backend Services ──────────────────────────────────
         self.analytics_service      = AnalyticsService(self.db_engine)
         self.export_service         = ExportService(self.comment_repo, self.project_repo)
-        self.verification_service   = VerificationService(self.comment_repo)
+        self.verification_service   = VerificationService(self.comment_repo, self.audit_repo)
         self.text_cleaning_service  = TextCleaningService()
         self.classification_service = ClassificationService()
 
