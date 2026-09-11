@@ -18,7 +18,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import numpy as np
 import cv2
 from PIL import Image
-import fitz  # PyMuPDF
+import pymupdf as fitz
 import io
 
 # Increase PIL image size limit for large engineering drawings

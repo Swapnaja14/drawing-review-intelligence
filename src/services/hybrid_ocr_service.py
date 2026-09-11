@@ -5,7 +5,7 @@ Uses Tesseract for printed text and TrOCR for handwritten text
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Literal
-import fitz  # PyMuPDF
+import pymupdf as fitz
 from PIL import Image
 import pytesseract
 import io

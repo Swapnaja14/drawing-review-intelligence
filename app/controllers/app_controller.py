@@ -57,10 +57,7 @@ from src.services.classification_service import ClassificationService
 from src.services.annotation_service_enhanced import AnnotationDetectionServiceEnhanced
 from src.core.exceptions.auth_exceptions import InvalidCredentialsError
 from src.infrastructure.logging.logger import get_logger
-
-# Resolve project root so the DB path is correct regardless of CWD
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_DB_PATH = _PROJECT_ROOT / "data" / "ucc_database.db"
+from src.config import get_config
 
 logger = get_logger("AppController")
 
@@ -225,17 +222,16 @@ class AppController(QObject):
     def __init__(self, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
 
-        # ── Services ──────────────────────────────────────────────
+        # ── Configuration & Services ──────────────────────────────
+        self.config          = get_config()
         self.pdf_adapter     = PyMuPDFAdapter()
         self.pdf_service     = PDFService(pdf_loader=self.pdf_adapter)
         self.file_service    = FileService()
         self.auth_service: Optional[Any] = None   # initialised after db_engine below
 
         # ── Database ──────────────────────────────────────────────
-        # INTEGRATION NOTE:
-        # _DB_PATH is resolved relative to the project root so the correct
-        # database file is used regardless of the working directory.
-        self.db_engine    = DatabaseEngine(db_path=_DB_PATH)
+        db_path = self.config.database.get_resolved_db_path()
+        self.db_engine    = DatabaseEngine(db_path=db_path)
         self.drawing_repo = DrawingRepository(self.db_engine)
         self.project_repo = ProjectRepository(self.db_engine)
         self.comment_repo = CommentRepository(self.db_engine)

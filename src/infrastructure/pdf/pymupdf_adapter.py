@@ -6,7 +6,7 @@ PyMuPDF (fitz) implementation of IPDFLoader interface.
 import hashlib
 from pathlib import Path
 from typing import List, Dict, Any
-import fitz  # PyMuPDF
+import pymupdf as fitz
 
 from src.core.interfaces.pdf_loader import IPDFLoader
 from src.core.dtos.pdf_dtos import PDFDocumentDTO, PageMetadataDTO, RenderedPageDTO

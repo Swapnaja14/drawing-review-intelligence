@@ -8,7 +8,7 @@ from typing import Callable, Optional, List
 import time
 import io
 from datetime import datetime, timezone
-import fitz  # PyMuPDF
+import pymupdf as fitz
 from PIL import Image
 import pytesseract
 

@@ -1,6 +1,6 @@
 import time
 import math
-import fitz  # PyMuPDF
+import pymupdf as fitz
 from pathlib import Path
 from typing import List
 
